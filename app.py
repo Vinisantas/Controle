@@ -17,7 +17,7 @@ escolha = st.sidebar.selectbox("Escolha uma página", ["Consulta Patrimonio"])
 @st.cache_data()
 def carregar_dataframe():  
     # Configurar a conexão com o banco de dados SQLite cadastro_patrimonio.sqlite
-    caminho_db = r"C:\Users\usuario\OneDrive\Desktop\App\Controle\Banco Dados\cadastro_patrimonio.sqlite"
+    caminho_db = r"https://github.com/Vinisantas/Controle/blob/main/cadastro_patrimonio.sqlite"
 
     conn = sqlite3.connect(caminho_db)
 
