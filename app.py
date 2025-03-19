@@ -10,10 +10,8 @@ import sqlite3
 # Configurações da página
 st.set_page_config(layout="wide", page_title="Controle")
 
-pages = ["app", "UC"]
-
 # Seleção da página
-escolha = st.sidebar.selectbox("Escolha uma página", pages)
+escolha = st.sidebar.selectbox("Escolha uma página", ["Consulta Patrimonio"])
 
 # Função para carregar o DataFrame
 @st.cache_data()
@@ -83,7 +81,7 @@ def format_currency(value):
         return value
 
 #pagina 1 
-if escolha == "Consulta patrimônio":
+if escolha == "Consulta Patrimonio":
     st.title("Consulta Patrimonio")
     
     # # Forçar atualização dos dados
@@ -121,8 +119,7 @@ if escolha == "Consulta patrimônio":
 
 
 # # Página 2
-#if escolha == " Descarte":
-#  st.title("Descarte")
+# if escolha == "Dashboard descarte":
 #     # Função para ler o arquivo excel
 #     def load_excel(file_path, sheet_name="Grupo"):
 #         if Path(file_path).exists():
@@ -298,7 +295,4 @@ if escolha == "Consulta patrimônio":
 
 
 
-if escolha == "UC":
-    st.header("UC")
-    st.write("Entre em contato conosco aqui.")
 
