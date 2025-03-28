@@ -93,7 +93,7 @@ def carregar_dataframeUC():
 
     # Converter as colunas para os tipos apropriados
     df_usoConsumo['Descricao'] = df_usoConsumo['Descricao'].astype(str)
-    df_usoConsumo['Código'] = df_usoConsumo['Código'].astype(int, errors='ignore')
+    df_usoConsumo['Código'] = df_usoConsumo['Código'].astype(str)
     df_usoConsumo['Cód. Depósito'] = df_usoConsumo['Cód. Depósito'].astype(str)
     df_usoConsumo['Unidade'] = df_usoConsumo['Unidade'].astype(str)
     df_usoConsumo['Custo'] = df_usoConsumo['Custo'].astype(float)
