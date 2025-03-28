@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import locale
@@ -11,9 +10,9 @@ import sqlite3
 st.set_page_config(layout="wide", page_title="Controle")
 
 # Seleção da página
-escolha = st.sidebar.selectbox("Escolha uma página", ["Consulta Patrimonio"])
+escolha = st.sidebar.selectbox("Escolha uma página", ["Consulta Patrimonio", "uso consumo"])
 
-# Função para carregar o DataFrame
+# Função para carregar o DataFrame de cadastro_patrimonio
 @st.cache_data()
 def carregar_dataframe():  
     # Configurar a conexão com o banco de dados SQLite cadastro_patrimonio.sqlite
@@ -23,13 +22,12 @@ def carregar_dataframe():
     query = """
         SELECT Plaqueta, "Desc. Bem", Filial,
         "Desc. Local", Portador, "Data últ. Loc", Fornecedor,
-        Documento, "Data Aquisição", "Valor Aquisição",
+        Documento, "Data aquisição", "Valor Aquisição",
         "Cód. Bem", "Série Fabricação"
         FROM 
             cadastro_patrimonio
         WHERE 
             Plaqueta <> 0 
-            
         ORDER BY 
             Plaqueta DESC;
     """
@@ -62,8 +60,9 @@ def carregar_dataframe():
     df_patrimonio['idade'] = df_patrimonio['idade'].round(2)
 
     # Substituir valores NaN em 'idade' por zero
-    df_patrimonio['idade'] = df_patrimonio['idade'].fillna(0 )
-    # Converter a coluna para datetime, se ainda não tiver sido feito
+    df_patrimonio['idade'] = df_patrimonio['idade'].fillna(0)
+
+    # Converter a coluna 'Data Aquisição' de volta para string
     df_patrimonio['Data aquisição'] = df_patrimonio['Data aquisição'].dt.strftime('%d/%m/%Y')
     
     # Converter a coluna 'Documento' para float e depois para int, lidando com valores nulos
@@ -71,24 +70,42 @@ def carregar_dataframe():
 
     return df_patrimonio
 
-# Função para formatar valores em moeda local
-def format_currency(value):
-    try:
-        locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
-        return locale.currency(value, grouping=True)
-    except locale.Error as e:
-        st.error(f"Erro ao configurar locale: {e}")
-        return value
+# Função para carregar o DataFrame de estoque
+@st.cache_data()
+def carregar_dataframeUC():  
+    # Configurar a conexão com o banco de dados SQLite estoque.sqlite
+    caminho_db = 'Banco Dados/estoque.sqlite'
+    conn = sqlite3.connect(caminho_db)
 
-#pagina 1 
+    query = """
+    SELECT "Descricao", "Código", "Cód. Depósito", "Filial", "Unidade", "Qtde Estoque", "Custo", "Total Custo"
+    FROM inventario_adicional
+    WHERE "Descricao" <> ""
+    ORDER BY "Custo" DESC;
+
+    """
+
+    # Ler dados diretamente para um DataFrame do pandas
+    df_usoConsumo = pd.read_sql_query(query, conn)
+    
+    # Fechar a conexão
+    conn.close()
+
+    # Converter as colunas para os tipos apropriados
+    df_usoConsumo['Descricao'] = df_usoConsumo['Descricao'].astype(str)
+    df_usoConsumo['Código'] = df_usoConsumo['Código'].astype(int, errors='ignore')
+    df_usoConsumo['Cód. Depósito'] = df_usoConsumo['Cód. Depósito'].astype(str)
+    df_usoConsumo['Unidade'] = df_usoConsumo['Unidade'].astype(str)
+    df_usoConsumo['Custo'] = df_usoConsumo['Custo'].astype(float)
+    df_usoConsumo['Qtde Estoque'] = df_usoConsumo['Qtde Estoque'].astype(str)
+    df_usoConsumo['Total Custo'] = df_usoConsumo['Total Custo'].astype(float)
+
+    return df_usoConsumo
+
+# Página de consulta de patrimônio
 if escolha == "Consulta Patrimonio":
     st.title("Consulta Patrimonio")
-    
-    # # Forçar atualização dos dados
-    # if st.button('Atualizar Dados'):
-    #     st.cache_data.clear()  # Limpar o cache
-    #     st.write("Cache limpo, dados serão recarregados.")
-    
+
     # Carregar o dataframe
     df = carregar_dataframe()
         
@@ -100,8 +117,10 @@ if escolha == "Consulta Patrimonio":
     filtro = filtro.strip().upper()
     idade_min, idade_max = st.slider('Selecionar faixa de idade', min_value=int(df['idade'].min()), max_value=int(df['idade'].max()), value=(int(df['idade'].min()), int(df['idade'].max())))
     df['Selecionar'] = False
+
     # Desabilitar a edição de todas as colunas, exceto a última
     disabled_columns = df.columns[:-1].tolist()    
+
     if filtro or idade_min or idade_max:
         df_filtrado = df[(df['Plaqueta'].str.contains(filtro, case=False) | df['Desc. Bem'].str.contains(filtro, case=False)) & 
                         (df['idade'] >= idade_min) & 
@@ -115,7 +134,45 @@ if escolha == "Consulta Patrimonio":
         else:
             st.header("Produto não encontrado!")
     else:
-        st.text("Por favor, insira um filtro ou intervalo de idade.")
+        # Mostrar todos os equipamentos se nenhum filtro for inserido
+        st.data_editor(df, column_config={"Selecionar": st.column_config.CheckboxColumn(
+            "Selecionar",
+            default=True
+        )}, disabled=disabled_columns, use_container_width=True, hide_index=True)
+
+# Página de consulta de uso e consumo
+if escolha == "uso consumo":
+    st.title("Consulta Uso Consumo")
+
+    df = carregar_dataframeUC()
+
+    st.header(" ")
+
+    # Campos consultas
+    filtro = st.text_input("Consulta de Descrição")
+    filtro = filtro.strip().upper()
+    df['Selecionar'] = False
+
+    # Desabilitar a edição de todas as colunas, exceto a última
+    disabled_columns = df.columns[:-1].tolist()
+
+    if filtro:
+        df_filtrado = df[df['Descricao'].str.contains(filtro, case=False)]
+
+        if not df_filtrado.empty:
+            st.data_editor(df_filtrado, column_config={"Selecionar": st.column_config.CheckboxColumn(
+                "Selecionar",
+                default=True
+            )}, disabled=disabled_columns, use_container_width=True, hide_index=True)
+        else:
+            st.header("Descrição não encontrada!")
+    else:
+        # Mostrar todos os equipamentos se nenhum filtro for inserido
+        st.data_editor(df, column_config={"Selecionar": st.column_config.CheckboxColumn(
+            "Selecionar",
+            default=True
+        )}, disabled=disabled_columns, use_container_width=True, hide_index=True)
+
 
 
 # # Página 2
