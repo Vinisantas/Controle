@@ -2,10 +2,14 @@ import pandas as pd
 from sqlalchemy import create_engine, inspect
 import sqlite3
 import re
+from decouple import config
+
+# Variáveis do arquivo .env
+caminho_tabela = config('CAMINHO_TABELA')  # Caminho para o arquivo Excel
+caminho_db = config('CAMINHO_DB')  # Caminho para o banco de dados SQLite
 
 # Ler tabela
-nome_tabela = r"c:\Users\usuario\Downloads\SRV-APLArquivos$Pompeiateste.xlsx"
-df = pd.read_excel(nome_tabela)
+df = pd.read_excel(caminho_tabela)
 
 # Removendo as linhas em branco
 df = df.loc[~df['Unnamed: 0'].isnull()]
@@ -32,13 +36,12 @@ new_column_names = {
     'Unnamed: 37': 'Dep. Acumulado'
 }
 # Ler apenas as colunas desejadas
-df = pd.read_excel(nome_tabela, usecols=new_column_names.keys())
+df = pd.read_excel(caminho_tabela, usecols=new_column_names.keys())
 
 # Renomear as colunas
 df.rename(columns=new_column_names, inplace=True)
 
 # Conectar ao banco de dados SQLite
-caminho_db = r"Controle/cadastro_patrimonio.sqlite"
 conn = sqlite3.connect(caminho_db)
 cursor = conn.cursor()
 
@@ -55,11 +58,11 @@ for index, row in df.iterrows():
     # Limpeza de dados
     for col in df.columns:
         if isinstance(row[col], str):
-            row[col] = row[col].strip() # remove espaços extras
+            row[col] = row[col].strip()  # Remove espaços extras
 
-    # Tratamento especifico da coluna valor aquisição.
+    # Tratamento específico da coluna valor aquisição.
     valor_aquisicao = str(row['Valor Aquisição']).replace(',', '.')
-    valor_aquisicao = re.sub(r'[^\d\.]', '', valor_aquisicao) # remove caracteres não numericos
+    valor_aquisicao = re.sub(r'[^\d\.]', '', valor_aquisicao)  # Remove caracteres não numéricos
 
     try:
         valor_aquisicao = float(valor_aquisicao)
@@ -114,12 +117,13 @@ for index, row in df.iterrows():
                 row['Fornecedor'], row['Documento'], row['Data aquisição'], valor_aquisicao,
                 row['Cód. Bem'], row['Série Fabricação'], row['Cor'], row['Espécie'], row['Dep. Acumulado']
             ))
-        print(f"Dados inseridos/atualizados: {row}") # adicionado print para debug
+        print(f"Dados inseridos/atualizados: {row}")
     except sqlite3.OperationalError as e:
         print(f"Erro na linha {index}: {e}")
     except Exception as e:
         print(f"Erro inesperado na linha {index}: {e}")
 
-conn.commit() # Adicionado commit para salvar as mudanças.
+conn.commit()  # Salvar mudanças
 
-print("Processo concluído.") # Adicionado print para informar o fim do processo.
+print("Processo concluído.")
+conn.close()  # Fechar conexão com o banco de dados
