@@ -4,9 +4,10 @@ import sqlite3
 import re
 from decouple import config
 
-# Variáveis do arquivo .env
+# Variáveis do arquivo .env 
 caminho_tabela = config('CAMINHO_TABELA')  # Caminho para o arquivo Excel
 caminho_db = config('CAMINHO_DB')  # Caminho para o banco de dados SQLite
+
 
 # Ler tabela
 df = pd.read_excel(caminho_tabela)
