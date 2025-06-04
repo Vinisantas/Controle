@@ -10,7 +10,7 @@ import sqlite3
 st.set_page_config(layout="wide", page_title="Controle")
 
 # Seleção da página
-escolha = st.sidebar.selectbox("Escolha uma página", ["Consulta Patrimonio", "uso consumo"])
+escolha = st.sidebar.selectbox("Escolha uma página", ["Consulta Patrimonio", "uso consumo", "baixados"])
 
 # Função para carregar o DataFrame de cadastro_patrimonio
 @st.cache_data()
@@ -102,6 +102,12 @@ def carregar_dataframeUC():
 
     return df_usoConsumo
 
+
+@st.cache_data()
+def carregar_dataFrameBaixas():
+    # Configurar a conexão com o banco de dados SQLite baixas.sqlite
+    caminho_db = 'Banco Dados/baixas.sqlite'
+
 # Página de consulta de patrimônio
 if escolha == "Consulta Patrimonio":
     st.title("Consulta Patrimonio")
@@ -174,7 +180,42 @@ if escolha == "uso consumo":
         )}, disabled=disabled_columns, use_container_width=True, hide_index=True)
 
 
+if escolha == "baixados":
+    st.title("Consulta Baixados")
 
+    # Carregar o dataframe
+    df = carregar_dataframe()
+
+    # Quebra de linha
+    st.header(" ")
+
+    # Campos consultas
+    filtro = st.text_input("Consultar Plaqueta ou Descrição")
+    filtro = filtro.strip().upper()
+    idade_min, idade_max = st.slider('Selecionar faixa de idade', min_value=int(df['idade'].min()), max_value=int(df['idade'].max()), value=(int(df['idade'].min()), int(df['idade'].max())))
+    df['Selecionar'] = False
+
+    # Desabilitar a edição de todas as colunas, exceto a última
+    disabled_columns = df.columns[:-1].tolist()    
+
+    if filtro or idade_min or idade_max:
+        df_filtrado = df[(df['Plaqueta'].str.contains(filtro, case=False) | df['Desc. Bem'].str.contains(filtro, case=False)) & 
+                        (df['idade'] >= idade_min) & 
+                        (df['idade'] <= idade_max)]
+        
+        if not df_filtrado.empty:
+            st.data_editor(df_filtrado, column_config={"Selecionar": st.column_config.CheckboxColumn(
+                "Selecionar",
+                default=True
+            )},  disabled=disabled_columns ,use_container_width=True, hide_index=True)
+        else:
+            st.header("Produto não encontrado!")
+    else:
+        # Mostrar todos os equipamentos se nenhum filtro for inserido
+        st.data_editor(df, column_config={"Selecionar": st.column_config.CheckboxColumn(
+            "Selecionar",
+            default=True
+        )}, disabled=disabled_columns, use_container_width=True, hide_index=True)
 # # Página 2
 # if escolha == "Dashboard descarte":
 #     # Função para ler o arquivo excel

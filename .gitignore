@@ -1,0 +1,21 @@
+# Ignorar arquivos .env
+.env
+
+# Ignorar a pasta venv (ambientes virtuais)
+venv/
+
+# Ignorar arquivos temporários
+*.tmp
+*.log
+
+# Ignorar banco de dados SQLite
+*.sqlite
+
+# Ignorar arquivos de cache do Python
+__pycache__/
+
+# Ignorar arquivos de atualizações
+updates/
+
+# Ignorar arquivos de teste
+teste.py
