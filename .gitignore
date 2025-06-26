@@ -8,8 +8,6 @@ venv/
 *.tmp
 *.log
 
-# Ignorar banco de dados SQLite
-*.sqlite
 
 # Ignorar arquivos de cache do Python
 __pycache__/
