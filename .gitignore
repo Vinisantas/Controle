@@ -20,9 +20,7 @@ updates/
 # Ignorar arquivos de teste
 teste.py
 
-Banco Dados/cadastro_patrimonio.sqlite
-Banco Dados/cadastro_baixados.sqlite
-Banco Dados/estoque.sqlite
+
 
 # Ignorar arquivos de configuração do VS Code
 .vscode/
