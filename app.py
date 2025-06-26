@@ -16,7 +16,7 @@ escolha = st.sidebar.selectbox("Escolha uma página", ["Consulta Patrimonio", "u
 @st.cache_data()
 def carregar_dataframe():  
     # Configurar a conexão com o banco de dados SQLite cadastro_patrimonio.sqlite
-    caminho_db = 'cadastro_patrimonio.sqlite'
+    caminho_db = 'Banco Dados/cadastro_patrimonio.sqlite'
     conn = sqlite3.connect(caminho_db)
 
     query = """
@@ -70,6 +70,8 @@ def carregar_dataframe():
 
     return df_patrimonio
 
+
+
 # Função para carregar o DataFrame de estoque
 @st.cache_data()
 def carregar_dataframeUC():  
@@ -106,7 +108,62 @@ def carregar_dataframeUC():
 @st.cache_data()
 def carregar_dataFrameBaixas():
     # Configurar a conexão com o banco de dados SQLite baixas.sqlite
-    caminho_db = 'Banco Dados/baixas.sqlite'
+    caminho_db = 'Banco Dados/cadastro_baixados.sqlite'
+    conn = sqlite3.connect(caminho_db)
+
+    query = """
+        SELECT Plaqueta, "Desc. Bem", Filial,
+        "Desc. Local", Portador, "Data últ. Loc", Fornecedor,
+        Documento, "Data aquisição", "Valor Aquisição",
+        "Cód. Bem", "Série Fabricação"
+        FROM 
+            cadastro_baixados
+        WHERE 
+            Plaqueta <> 0 
+        ORDER BY 
+            Plaqueta DESC;
+    """
+
+    # Ler dados diretamente para um DataFrame do pandas
+    df_patrimonio = pd.read_sql_query(query, conn)
+    
+    # Fechar a conexão
+    conn.close()
+    
+    # Converter as colunas para os tipos apropriados
+    df_patrimonio['Plaqueta'] = df_patrimonio['Plaqueta'].astype(float).astype(int, errors='ignore').apply(lambda x: str(x).zfill(6) if pd.notnull(x) else "")
+    df_patrimonio['Desc. Bem'] = df_patrimonio['Desc. Bem'].astype(str)
+    df_patrimonio['Filial'] = df_patrimonio['Filial'].astype(str)
+    df_patrimonio['Desc. Local'] = df_patrimonio['Desc. Local'].astype(str)
+    df_patrimonio['Portador'] = df_patrimonio['Portador'].astype(str)
+    df_patrimonio['Fornecedor'] = df_patrimonio['Fornecedor'].astype(str)
+    df_patrimonio['Documento'] = df_patrimonio['Documento'].astype(str)
+    df_patrimonio['Cód. Bem'] = df_patrimonio['Cód. Bem'].astype(str)
+    df_patrimonio['Série Fabricação'] = df_patrimonio['Série Fabricação'].astype(str)
+    
+    # Data atual
+    data_atual = datetime.now()
+
+    # Converter a coluna para datetime, se ainda não tiver sido feito
+    df_patrimonio['Data aquisição'] = pd.to_datetime(df_patrimonio['Data aquisição'], format='%d/%m/%Y')
+
+    # Calcular a idade em anos
+    df_patrimonio['idade'] = (data_atual - df_patrimonio['Data aquisição']).dt.days / 365.25
+    df_patrimonio['idade'] = df_patrimonio['idade'].round(2)
+
+    # Substituir valores NaN em 'idade' por zero
+    df_patrimonio['idade'] = df_patrimonio['idade'].fillna(0)
+
+    # Converter a coluna 'Data Aquisição' de volta para string
+    df_patrimonio['Data aquisição'] = df_patrimonio['Data aquisição'].dt.strftime('%d/%m/%Y')
+    
+    # Converter a coluna 'Documento' para float e depois para int, lidando com valores nulos
+    df_patrimonio['Documento'] = df_patrimonio['Documento'].apply(lambda x: int(float(x)) if pd.notnull(x) and x != '' else 0)
+
+    return df_patrimonio
+
+
+
 
 # Página de consulta de patrimônio
 if escolha == "Consulta Patrimonio":
@@ -184,7 +241,7 @@ if escolha == "baixados":
     st.title("Consulta Baixados")
 
     # Carregar o dataframe
-    df = carregar_dataframe()
+    df = carregar_dataFrameBaixas()
 
     # Quebra de linha
     st.header(" ")
