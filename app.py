@@ -16,7 +16,7 @@ escolha = st.sidebar.selectbox("Escolha uma página", ["Consulta Patrimonio", "u
 @st.cache_data()
 def carregar_dataframe():  
     # Configurar a conexão com o banco de dados SQLite cadastro_patrimonio.sqlite
-    caminho_db = 'Banco Dados/cadastro_patrimonio.sqlite'
+    caminho_db = 'cadastro_patrimonio.sqlite'
     conn = sqlite3.connect(caminho_db)
 
     query = """
@@ -108,7 +108,7 @@ def carregar_dataframeUC():
 @st.cache_data()
 def carregar_dataFrameBaixas():
     # Configurar a conexão com o banco de dados SQLite baixas.sqlite
-    caminho_db = 'Banco Dados/cadastro_baixados.sqlite'
+    caminho_db = 'cadastro_baixados.sqlite'
     conn = sqlite3.connect(caminho_db)
 
     query = """
