@@ -16,14 +16,11 @@ escolha = st.sidebar.selectbox("Escolha uma página", ["Consulta Patrimonio", "u
 @st.cache_data()
 def carregar_dataframe():  
     # Configurar a conexão com o banco de dados SQLite cadastro_patrimonio.sqlite
-    caminho_db = 'cadastro_patrimonio.sqlite'
+    caminho_db = 'Banco Dados/cadastro_patrimonio.sqlite'
     conn = sqlite3.connect(caminho_db)
 
     query = """
-        SELECT Plaqueta, "Desc. Bem", Filial,
-        "Desc. Local", Portador, "Data últ. Loc", Fornecedor,
-        Documento, "Data aquisição", "Valor Aquisição",
-        "Cód. Bem", "Série Fabricação"
+        SELECT *
         FROM 
             cadastro_patrimonio
         WHERE 
@@ -176,19 +173,16 @@ if escolha == "Consulta Patrimonio":
     st.header(" ")
    
     # Campos consultas
-    filtro = st.text_input("Consultar Plaqueta ou Descrição")
+    coluna_pesquisa = st.selectbox("Coluna para Pesquisa", ["Plaqueta", "Desc. Bem", "Filial", "Portador"])
+    filtro = st.text_input(f"Consultar {coluna_pesquisa}")
     filtro = filtro.strip().upper()
-    idade_min, idade_max = st.slider('Selecionar faixa de idade', min_value=int(df['idade'].min()), max_value=int(df['idade'].max()), value=(int(df['idade'].min()), int(df['idade'].max())))
-    df['Selecionar'] = False
 
     # Desabilitar a edição de todas as colunas, exceto a última
-    disabled_columns = df.columns[:-1].tolist()    
+    disabled_columns = df.columns[:-1].tolist()
 
-    if filtro or idade_min or idade_max:
-        df_filtrado = df[(df['Plaqueta'].str.contains(filtro, case=False) | df['Desc. Bem'].str.contains(filtro, case=False)) & 
-                        (df['idade'] >= idade_min) & 
-                        (df['idade'] <= idade_max)]
-        
+    if filtro:
+        df_filtrado = df[df[coluna_pesquisa].str.contains(filtro, case=False)]
+
         if not df_filtrado.empty:
             st.data_editor(df_filtrado, column_config={"Selecionar": st.column_config.CheckboxColumn(
                 "Selecionar",
@@ -434,19 +428,7 @@ if escolha == "baixados":
 
 #         if len(filtered_df) > 0:
 #             st.title("Resultado da Pesquisa")
-#             # Calculate the minimum and maximum values of the 'idade' column
-#             min_idade = min(df['idade'])
-#             max_idade = max(df['idade'])
-
-#             # Display the DataFrame with background gradient
-#             st.dataframe(filtered_df.style.background_gradient(axis=0, cmap='RdYlGn',
-#                                     vmin=min_idade, vmax=max_idade, gmap=df['idade']),hide_index=True)
-#         else:
-#             st.title("Nenhum resultado encontrado")
-
-    
-#     else:
-#         st.error("DataFrame não foi carregado corretamente.")
+#             # Calculate the min
 
 
 
