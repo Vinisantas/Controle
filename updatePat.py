@@ -29,9 +29,6 @@ new_column_names = {
     'Unnamed: 28': 'Valor Aquisição',
     'Unnamed: 30': 'Cód. Bem',
     'Unnamed: 32': 'Série Fabricação',
-    'Unnamed: 34': 'Cor',
-    'Unnamed: 35': 'Espécie',
-    'Unnamed: 37': 'Dep. Acumulado',
     'Unnamed: 38': 'Filial aquisição'
 }
 # Ler apenas as colunas desejadas
@@ -75,9 +72,6 @@ if "cadastro_patrimonio" not in tabelas_existentes:
         "Valor Aquisição" REAL,
         "Cód. Bem" TEXT,
         "Série Fabricação" TEXT,
-        Cor TEXT,
-        Espécie TEXT,
-        "Dep. Acumulado" REAL,
         "Filial aquisição" TEXT
     )
     """
@@ -109,16 +103,13 @@ for index, row in df.iterrows():
                 "Valor Aquisição" = ?,
                 "Cód. Bem" = ?,
                 "Série Fabricação" = ?,
-                "Cor" = ?,
-                "Espécie" = ?,
-                "Dep. Acumulado" = ?,
                 "Filial aquisição" = ?
             WHERE Plaqueta = ?
         """, (
             row['Desc. Bem'], row['Filial'], row['Cód. Local'], row['Desc. Local'], row['Cód. Portador'],
             row['Portador'], row['Data últ. Loc'], row['Cód. Fornecedor'], row['Fornecedor'],
             row['Documento'], row['Data aquisição'], row['Valor Aquisição'], row['Cód. Bem'],
-            row['Série Fabricação'], row['Cor'], row['Espécie'], row['Dep. Acumulado'], row['Filial aquisição'], row['Plaqueta']
+            row['Série Fabricação'], row['Filial aquisição'], row['Plaqueta']
         ))
     else:
         # Inserir nova linha
@@ -126,13 +117,13 @@ for index, row in df.iterrows():
             INSERT INTO cadastro_patrimonio (
                 Plaqueta, "Desc. Bem", Filial, "Cód. Local", "Desc. Local", "Cód. Portador", Portador,
                 "Data últ. Loc", "Cód. Fornecedor", Fornecedor, Documento, "Data aquisição",
-                "Valor Aquisição", "Cód. Bem", "Série Fabricação", Cor, Espécie, "Dep. Acumulado", "Filial aquisição"
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                "Valor Aquisição", "Cód. Bem", "Série Fabricação", "Filial aquisição"
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             row['Plaqueta'], row['Desc. Bem'], row['Filial'], row['Cód. Local'], row['Desc. Local'],
             row['Cód. Portador'], row['Portador'], row['Data últ. Loc'], row['Cód. Fornecedor'],
             row['Fornecedor'], row['Documento'], row['Data aquisição'], row['Valor Aquisição'],
-            row['Cód. Bem'], row['Série Fabricação'], row['Cor'], row['Espécie'], row['Dep. Acumulado'], row['Filial aquisição']
+            row['Cód. Bem'], row['Série Fabricação'], row['Filial aquisição']
         ))
     conn.commit()  # Salvar as alterações após cada iteração
 

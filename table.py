@@ -22,9 +22,6 @@ create_table_sql = """
         "Valor Aquisição" REAL,
         "Cód. Bem" TEXT,
         "Série Fabricação" TEXT,
-        Cor TEXT,
-        Espécie TEXT,
-        "Dep. Acumulado" REAL,
         "Filial aquisição" TEXT
     )
     """
