@@ -20,11 +20,8 @@ def carregar_dataframe():
     conn = sqlite3.connect(caminho_db)
 
     query = """
-        SELECT *
-        FROM 
-            cadastro_patrimonio
-        WHERE 
-            Plaqueta <> 0 
+        SELECT * FROM cadastro_patrimonio
+        WHERE Plaqueta <> 0 
         ORDER BY 
             Plaqueta DESC;
     """

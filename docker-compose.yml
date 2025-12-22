@@ -1,0 +1,17 @@
+﻿version: '3.8'
+services:
+  app:
+    build: .
+    image: controle:latest
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./Banco Dados:/app/Banco Dados
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD-SHELL","curl -f http://localhost:8501 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

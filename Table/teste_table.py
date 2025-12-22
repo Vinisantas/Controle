@@ -1,7 +1,7 @@
 import sqlite3
 
 # Conectar ao banco de dados
-conn = sqlite3.connect("cadastro_patrimonio.sqlite")
+conn = sqlite3.connect("Banco Dados/estoque.sqlite")
 
 # Listar as tabelas existentes
 cursor = conn.cursor()

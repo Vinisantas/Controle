@@ -1,3 +1,4 @@
+
 import sqlite3
 
 # Conectar ao banco de dados SQLite
@@ -30,3 +31,4 @@ conn.commit()
 
 conn.close()
 exit()
+
