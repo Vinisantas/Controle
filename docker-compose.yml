@@ -6,7 +6,7 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      - ./Banco Dados:/app/Banco Dados
+      - ./Banco_Dados:/app/Banco_Dados
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
@@ -15,3 +15,16 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+  db:
+    image: postgres:alpine
+    environment:
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=admin
+      - POSTGRES_USER=admin
+    restart: always
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    expose:
+      - "5432:5432"
+volumes:
+  db_data:
