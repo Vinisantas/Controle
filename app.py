@@ -6,12 +6,18 @@ from pathlib import Path
 from datetime import datetime
 import sqlite3
 
-# Configurações da página
-st.set_page_config(layout="wide", page_title="Controle")
+st.set_page_config(
+    page_title="Consultas Patrimônio",
+    layout="wide"
+)
 
-# Seleção da página
-escolha = st.sidebar.selectbox("Escolha uma página", ["Consulta Patrimonio", "uso consumo", "baixados"])
+st.title("🔍 Consultas")
 
+opcao = st.radio(
+    "Escolha o tipo de consulta:",
+    ["Patrimônio", "Uso e Consumo", "Baixados"],
+    horizontal=True
+)
 # Função para carregar o DataFrame de cadastro_patrimonio
 @st.cache_data()
 def carregar_dataframe():  
@@ -160,42 +166,86 @@ def carregar_dataFrameBaixas():
 
 
 # Página de consulta de patrimônio
-if escolha == "Consulta Patrimonio":
-    st.title("Consulta Patrimonio")
+if opcao == "Patrimônio":
+    st.title("Consulta Patrimônio")
 
     # Carregar o dataframe
     df = carregar_dataframe()
-        
-    # Quebra de linha
-    st.header(" ")
-   
-    # Campos consultas
-    coluna_pesquisa = st.selectbox("Coluna para Pesquisa", ["Plaqueta", "Desc. Bem", "Filial", "Portador"])
-    filtro = st.text_input(f"Consultar {coluna_pesquisa}")
+
+    st.markdown("### 🔎 Filtro de Pesquisa")
+
+    coluna_pesquisa = st.selectbox(
+        "Coluna para Pesquisa",
+        ["Plaqueta", "Desc. Bem", "Filial", "Portador"]
+    )
+
+    filtro = st.text_area(
+        f"Consultar {coluna_pesquisa}",
+        placeholder=(
+            "Digite uma ou mais plaquetas separadas por vírgula ou linha\n"
+            "Exemplo:\n000123\n000456\n000789"
+            if coluna_pesquisa == "Plaqueta"
+            else "Digite um texto para pesquisa"
+        ),
+        height=100
+    )
+
     filtro = filtro.strip().upper()
 
-    # Desabilitar a edição de todas as colunas, exceto a última
+    # Desabilitar edição (menos checkbox)
     disabled_columns = df.columns[:-1].tolist()
 
-    if filtro:
-        df_filtrado = df[df[coluna_pesquisa].str.contains(filtro, case=False)]
+    # =========================
+    # LÓGICA DE FILTRO
+    # =========================
 
-        if not df_filtrado.empty:
-            st.data_editor(df_filtrado, column_config={"Selecionar": st.column_config.CheckboxColumn(
-                "Selecionar",
-                default=True
-            )},  disabled=disabled_columns ,use_container_width=True, hide_index=True)
+    if filtro:
+
+        # --- BUSCA POR PLAQUETA (auto-detecta lista) ---
+        if coluna_pesquisa == "Plaqueta":
+
+            lista_plaquetas = [
+                x.strip().zfill(6)
+                for x in filtro.replace("\n", ",").split(",")
+                if x.strip()
+            ]
+
+            df_filtrado = df[df["Plaqueta"].isin(lista_plaquetas)]
+
+            st.caption(f"🔢 Busca múltipla detectada: {len(lista_plaquetas)} plaqueta(s)")
+
+        # --- BUSCA TEXTUAL NORMAL ---
         else:
-            st.header("Produto não encontrado!")
+            df_filtrado = df[
+                df[coluna_pesquisa].str.contains(filtro, case=False, na=False)
+            ]
+
     else:
-        # Mostrar todos os equipamentos se nenhum filtro for inserido
-        st.data_editor(df, column_config={"Selecionar": st.column_config.CheckboxColumn(
-            "Selecionar",
-            default=True
-        )}, disabled=disabled_columns, use_container_width=True, hide_index=True)
+        df_filtrado = df
+
+    # =========================
+    # EXIBIÇÃO
+    # =========================
+
+    if not df_filtrado.empty:
+        st.data_editor(
+            df_filtrado,
+            column_config={
+                "Selecionar": st.column_config.CheckboxColumn(
+                    "Selecionar",
+                    default=False
+                )
+            },
+            disabled=disabled_columns,
+            use_container_width=True,
+            hide_index=True
+        )
+    else:
+        st.warning("⚠️ Nenhum registro encontrado.")
+
 
 # Página de consulta de uso e consumo
-if escolha == "uso consumo":
+if opcao == "Uso e Consumo":
     st.title("Consulta Uso Consumo")
 
     df = carregar_dataframeUC()
@@ -228,7 +278,7 @@ if escolha == "uso consumo":
         )}, disabled=disabled_columns, use_container_width=True, hide_index=True)
 
 
-if escolha == "baixados":
+if opcao == "Baixados":
     st.title("Consulta Baixados")
 
     # Carregar o dataframe
@@ -264,6 +314,30 @@ if escolha == "baixados":
             "Selecionar",
             default=True
         )}, disabled=disabled_columns, use_container_width=True, hide_index=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # # Página 2
 # if escolha == "Dashboard descarte":
 #     # Função para ler o arquivo excel

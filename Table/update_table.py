@@ -3,7 +3,7 @@ import pandas as pd
 import sqlite3
 
 # Ler tabela
-nome_tabela = r"c:\vinícius senior\SRV-APLArquivos$Pompeiateste23.xlsx"
+nome_tabela = r"c:\vinícius senior\patrim_atualizados_19-02.xlsx"
 
 new_column_names = {
     'Unnamed: 0': 'Plaqueta',
