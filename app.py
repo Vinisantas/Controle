@@ -1,506 +1,176 @@
 import streamlit as st
-import pandas as pd
-import locale
-import matplotlib.pyplot as plt
-from pathlib import Path
-from datetime import datetime
-import sqlite3
+from modulos.consulta_patrimonio import render_patrimonio, carregar_dataframeUC, carregar_dataFrameBaixas
+from modulos.Histórico_Geral import render_historico
+from modulos.SaídaEquipamentos import render_saidas
+from modulos.RetornoEquipamentos import render_retornos
+from modulos.sup_dash import render_sup
+from modulos.estoque_dash import render_estoque
 
+# 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(
-    page_title="Consultas Patrimônio",
-    layout="wide"
+    page_title="Controle de Ativos TI",
+    page_icon="🖥️",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-st.title("🔍 Consultas")
+# 2. INICIALIZAÇÃO DO ESTADO DE LOGIN E NAVEGAÇÃO
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
 
-opcao = st.radio(
-    "Escolha o tipo de consulta:",
-    ["Patrimônio", "Uso e Consumo", "Baixados"],
-    horizontal=True
-)
-# Função para carregar o DataFrame de cadastro_patrimonio
-@st.cache_data()
-def carregar_dataframe():  
-    # Configurar a conexão com o banco de dados SQLite cadastro_patrimonio.sqlite
-    caminho_db = 'Banco Dados/cadastro_patrimonio.sqlite'
-    conn = sqlite3.connect(caminho_db)
+if "menu_atual" not in st.session_state:
+    st.session_state["menu_atual"] = "🔍 Consulta Patrimônio"
 
-    query = """
-        SELECT * FROM cadastro_patrimonio
-        WHERE Plaqueta <> 0 
-        ORDER BY 
-            Plaqueta DESC;
-    """
-
-    # Ler dados diretamente para um DataFrame do pandas
-    df_patrimonio = pd.read_sql_query(query, conn)
+# 3. FUNÇÃO DE LOGIN
+def realizar_login(usuario, senha):
+    USUARIO_CORRETO = "admin"
+    SENHA_CORRETA = "admin123"
     
-    # Fechar a conexão
-    conn.close()
-    
-    # Converter as colunas para os tipos apropriados
-    df_patrimonio['Plaqueta'] = df_patrimonio['Plaqueta'].astype(float).astype(int, errors='ignore').apply(lambda x: str(x).zfill(6) if pd.notnull(x) else "")
-    df_patrimonio['Desc. Bem'] = df_patrimonio['Desc. Bem'].astype(str)
-    df_patrimonio['Filial'] = df_patrimonio['Filial'].astype(str)
-    df_patrimonio['Desc. Local'] = df_patrimonio['Desc. Local'].astype(str)
-    df_patrimonio['Portador'] = df_patrimonio['Portador'].astype(str)
-    df_patrimonio['Fornecedor'] = df_patrimonio['Fornecedor'].astype(str)
-    df_patrimonio['Documento'] = df_patrimonio['Documento'].astype(str)
-    df_patrimonio['Cód. Bem'] = df_patrimonio['Cód. Bem'].astype(str)
-    df_patrimonio['Série Fabricação'] = df_patrimonio['Série Fabricação'].astype(str)
-    
-    # Data atual
-    data_atual = datetime.now()
+    if usuario == USUARIO_CORRETO and senha == SENHA_CORRETA:
+        st.session_state.autenticado = True
+        st.success("Login realizado com sucesso!")
+        st.rerun()
+    else:
+        st.error("Usuário ou senha incorretos.")
 
-    # Converter a coluna para datetime, se ainda não tiver sido feito
-    df_patrimonio['Data aquisição'] = pd.to_datetime(df_patrimonio['Data aquisição'], format='%d/%m/%Y')
+# 4. FLUXO DE TELAS
+if not st.session_state.autenticado:
+    # --- TELA DE LOGIN ---
+    st.markdown("""
+        <style>
+        .stApp { background-color: #0B0F19; color: #F8FAFC; }
+        #MainMenu {visibility: hidden;}
+        header {visibility: hidden;}
+        footer {visibility: hidden;}
+        </style>
+    """, unsafe_allow_html=True)
 
-    # Calcular a idade em anos
-    df_patrimonio['idade'] = (data_atual - df_patrimonio['Data aquisição']).dt.days / 365.25
-    df_patrimonio['idade'] = df_patrimonio['idade'].round(2)
+    _, col_login, _ = st.columns([1.2, 1.5, 1.2])
+    with col_login:
+        st.write("\n" * 4)
+        st.markdown("""
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h1 style="font-size: 2.2rem; color: #FFFFFF; margin-bottom: 5px;">🔐 TI CONTROLE</h1>
+                <p style="color: #94A3B8; font-size: 1rem;">VPS Tech - Gestão Patrimonial</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        with st.form("form_login"):
+            usuario_input = st.text_input("Usuário", placeholder="Digite seu usuário")
+            senha_input = st.text_input("Senha", type="password", placeholder="Digite sua senha")
+            botao_entrar = st.form_submit_button("Entrar no Sistema", use_container_width=True)
+            
+            if botao_entrar:
+                realizar_login(usuario_input, senha_input)
 
-    # Substituir valores NaN em 'idade' por zero
-    df_patrimonio['idade'] = df_patrimonio['idade'].fillna(0)
+else:
+    # --- TELA DO SISTEMA (SaaS Dark) ---
+    st.markdown("""
+        <style>
+        .stApp { background-color: #0B0F19; color: #F8FAFC; }
+        [data-testid="stSidebar"] { background-color: #0F1322 !important; border-right: 1px solid #1E293B; }
+        .sidebar-header { padding: 15px 0px; border-bottom: 1px solid #1E293B; margin-bottom: 20px; text-align: center; }
+        .sidebar-title { font-size: 1.3rem; font-weight: 800; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .sidebar-subtitle { font-size: 0.8rem; color: #94A3B8; display: block; margin-top: 5px; }
+        .sidebar-section-title { font-size: 0.75rem; font-weight: 700; color: #64748B; text-transform: uppercase; margin-top: 15px; margin-bottom: 10px; letter-spacing: 0.05em; }
+        .user-badge { background-color: #111827; border: 1px solid #1E293B; border-radius: 8px; padding: 10px; margin-bottom: 15px; text-align: center; }
+        </style>
+    """, unsafe_allow_html=True)
 
-    # Converter a coluna 'Data Aquisição' de volta para string
-    df_patrimonio['Data aquisição'] = df_patrimonio['Data aquisição'].dt.strftime('%d/%m/%Y')
-    
-    # Converter a coluna 'Documento' para float e depois para int, lidando com valores nulos
-    df_patrimonio['Documento'] = df_patrimonio['Documento'].apply(lambda x: int(float(x)) if pd.notnull(x) and x != '' else 0)
+    with st.sidebar:
+        st.markdown("""
+            <div class="sidebar-header">
+                <span class="sidebar-title">🖥️ TI CONTROLE</span>
+                <span class="sidebar-subtitle">Gestão de Equipamentos</span>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+            <div class="user-badge">
+                <span style="font-size: 0.75rem; color: #94A3B8; display: block;">USUÁRIO ATIVO</span>
+                <span style="font-weight: bold; color: #10B981;">🟢 admin</span>
+            </div>
+        """, unsafe_allow_html=True)
 
-    return df_patrimonio
+        st.markdown('<p class="sidebar-section-title">Navegação Principal</p>', unsafe_allow_html=True)
+        
+        # Páginas disponíveis no menu
+        paginas_disponiveis = [
+            "🔍 Consulta Patrimônio",
+            "📦 Uso & Consumo",
+            "📊 Dashboard Estoque",
+            "🕒 Histórico Geral",
+            "➡️ Saída Equipamentos",
+            "↩️ Retorno Equipamentos",
+            "📈 Dashboard Sup",
+            "🗑️ Saídas (Histórico)"
+        ]
+        
+        for pagina in paginas_disponiveis:
+            is_active = st.session_state['menu_atual'] == pagina
+            if st.button(
+                pagina, 
+                use_container_width=True, 
+                type="primary" if is_active else "secondary"
+            ):
+                st.session_state['menu_atual'] = pagina
+                st.rerun()
+            
+        st.write("---")
+        
+        if st.button("🚪 Sair do Sistema", use_container_width=True):
+            st.session_state.autenticado = False
+            st.rerun()
 
+        st.caption("VPS Ativos v1.1.0")
 
+    # 5. DIRECIONAMENTO E RENDERIZAÇÃO DAS PÁGINAS
+    opcao = st.session_state['menu_atual']
 
-# Função para carregar o DataFrame de estoque
-@st.cache_data()
-def carregar_dataframeUC():  
-    # Configurar a conexão com o banco de dados SQLite estoque.sqlite
-    caminho_db = 'Banco Dados/estoque.sqlite'
-    conn = sqlite3.connect(caminho_db)
+    if opcao == "🔍 Consulta Patrimônio":
+        st.title("Consulta Patrimônio")
+        st.caption("Gerencie e rastreie os ativos de TI em tempo real")
+        st.divider()
+        render_patrimonio()
 
-    query = """
-    SELECT "Descricao", "Código", "Cód. Depósito", "Filial", "Unidade", "Qtde Estoque", "Custo", "Total Custo"
-    FROM inventario_adicional
-    WHERE "Descricao" <> ""
-    ORDER BY "Custo" DESC;
-
-    """
-
-    # Ler dados diretamente para um DataFrame do pandas
-    df_usoConsumo = pd.read_sql_query(query, conn)
-    
-    # Fechar a conexão
-    conn.close()
-
-    # Converter as colunas para os tipos apropriados
-    df_usoConsumo['Descricao'] = df_usoConsumo['Descricao'].astype(str)
-    df_usoConsumo['Código'] = df_usoConsumo['Código'].astype(str)
-    df_usoConsumo['Cód. Depósito'] = df_usoConsumo['Cód. Depósito'].astype(str)
-    df_usoConsumo['Unidade'] = df_usoConsumo['Unidade'].astype(str)
-    df_usoConsumo['Custo'] = df_usoConsumo['Custo'].astype(float)
-    df_usoConsumo['Qtde Estoque'] = df_usoConsumo['Qtde Estoque'].astype(str)
-    df_usoConsumo['Total Custo'] = df_usoConsumo['Total Custo'].astype(float)
-
-    return df_usoConsumo
-
-
-@st.cache_data()
-def carregar_dataFrameBaixas():
-    # Configurar a conexão com o banco de dados SQLite baixas.sqlite
-    caminho_db = 'cadastro_baixados.sqlite'
-    conn = sqlite3.connect(caminho_db)
-
-    query = """
-        SELECT Plaqueta, "Desc. Bem", Filial,
-        "Desc. Local", Portador, "Data últ. Loc", Fornecedor,
-        Documento, "Data aquisição", "Valor Aquisição",
-        "Cód. Bem", "Série Fabricação"
-        FROM 
-            cadastro_baixados
-        WHERE 
-            Plaqueta <> 0 
-        ORDER BY 
-            Plaqueta DESC;
-    """
-
-    # Ler dados diretamente para um DataFrame do pandas
-    df_patrimonio = pd.read_sql_query(query, conn)
-    
-    # Fechar a conexão
-    conn.close()
-    
-    # Converter as colunas para os tipos apropriados
-    df_patrimonio['Plaqueta'] = df_patrimonio['Plaqueta'].astype(float).astype(int, errors='ignore').apply(lambda x: str(x).zfill(6) if pd.notnull(x) else "")
-    df_patrimonio['Desc. Bem'] = df_patrimonio['Desc. Bem'].astype(str)
-    df_patrimonio['Filial'] = df_patrimonio['Filial'].astype(str)
-    df_patrimonio['Desc. Local'] = df_patrimonio['Desc. Local'].astype(str)
-    df_patrimonio['Portador'] = df_patrimonio['Portador'].astype(str)
-    df_patrimonio['Fornecedor'] = df_patrimonio['Fornecedor'].astype(str)
-    df_patrimonio['Documento'] = df_patrimonio['Documento'].astype(str)
-    df_patrimonio['Cód. Bem'] = df_patrimonio['Cód. Bem'].astype(str)
-    df_patrimonio['Série Fabricação'] = df_patrimonio['Série Fabricação'].astype(str)
-    
-    # Data atual
-    data_atual = datetime.now()
-
-    # Converter a coluna para datetime, se ainda não tiver sido feito
-    df_patrimonio['Data aquisição'] = pd.to_datetime(df_patrimonio['Data aquisição'], format='%d/%m/%Y')
-
-    # Calcular a idade em anos
-    df_patrimonio['idade'] = (data_atual - df_patrimonio['Data aquisição']).dt.days / 365.25
-    df_patrimonio['idade'] = df_patrimonio['idade'].round(2)
-
-    # Substituir valores NaN em 'idade' por zero
-    df_patrimonio['idade'] = df_patrimonio['idade'].fillna(0)
-
-    # Converter a coluna 'Data Aquisição' de volta para string
-    df_patrimonio['Data aquisição'] = df_patrimonio['Data aquisição'].dt.strftime('%d/%m/%Y')
-    
-    # Converter a coluna 'Documento' para float e depois para int, lidando com valores nulos
-    df_patrimonio['Documento'] = df_patrimonio['Documento'].apply(lambda x: int(float(x)) if pd.notnull(x) and x != '' else 0)
-
-    return df_patrimonio
-
-
-
-
-# Página de consulta de patrimônio
-if opcao == "Patrimônio":
-    st.title("Consulta Patrimônio")
-
-    # Carregar o dataframe
-    df = carregar_dataframe()
-
-    st.markdown("### 🔎 Filtro de Pesquisa")
-
-    coluna_pesquisa = st.selectbox(
-        "Coluna para Pesquisa",
-        ["Plaqueta", "Desc. Bem", "Filial", "Portador"]
-    )
-
-    filtro = st.text_area(
-        f"Consultar {coluna_pesquisa}",
-        placeholder=(
-            "Digite uma ou mais plaquetas separadas por vírgula ou linha\n"
-            "Exemplo:\n000123\n000456\n000789"
-            if coluna_pesquisa == "Plaqueta"
-            else "Digite um texto para pesquisa"
-        ),
-        height=100
-    )
-
-    filtro = filtro.strip().upper()
-
-    # Desabilitar edição (menos checkbox)
-    disabled_columns = df.columns[:-1].tolist()
-
-    # =========================
-    # LÓGICA DE FILTRO
-    # =========================
-
-    if filtro:
-
-        # --- BUSCA POR PLAQUETA (auto-detecta lista) ---
-        if coluna_pesquisa == "Plaqueta":
-
-            lista_plaquetas = [
-                x.strip().zfill(6)
-                for x in filtro.replace("\n", ",").split(",")
-                if x.strip()
-            ]
-
-            df_filtrado = df[df["Plaqueta"].isin(lista_plaquetas)]
-
-            st.caption(f"🔢 Busca múltipla detectada: {len(lista_plaquetas)} plaqueta(s)")
-
-        # --- BUSCA TEXTUAL NORMAL ---
+    elif opcao == "📦 Uso & Consumo":
+        st.title("Consulta Uso e Consumo")
+        st.caption("Gerencie os insumos adicionais de TI")
+        st.divider()
+        df = carregar_dataframeUC()
+        if not df.empty:
+            st.markdown("### 🔎 Consulta de Descrição")
+            filtro = st.text_input("Digite o termo do insumo").strip().upper()
+            df_filtrado = df[df['Descricao'].str.contains(filtro, case=False)] if filtro else df
+            st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
         else:
-            df_filtrado = df[
-                df[coluna_pesquisa].str.contains(filtro, case=False, na=False)
-            ]
+            st.warning("Banco de Uso e Consumo não disponível ou vazio.")
 
-    else:
-        df_filtrado = df
-
-    # =========================
-    # EXIBIÇÃO
-    # =========================
-
-    if not df_filtrado.empty:
-        st.data_editor(
-            df_filtrado,
-            column_config={
-                "Selecionar": st.column_config.CheckboxColumn(
-                    "Selecionar",
-                    default=False
-                )
-            },
-            disabled=disabled_columns,
-            use_container_width=True,
-            hide_index=True
-        )
-    else:
-        st.warning("⚠️ Nenhum registro encontrado.")
-
-
-# Página de consulta de uso e consumo
-if opcao == "Uso e Consumo":
-    st.title("Consulta Uso Consumo")
-
-    df = carregar_dataframeUC()
-
-    st.header(" ")
-
-    # Campos consultas
-    filtro = st.text_input("Consulta de Descrição")
-    filtro = filtro.strip().upper()
-    df['Selecionar'] = False
-
-    # Desabilitar a edição de todas as colunas, exceto a última
-    disabled_columns = df.columns[:-1].tolist()
-
-    if filtro:
-        df_filtrado = df[df['Descricao'].str.contains(filtro, case=False)]
-
-        if not df_filtrado.empty:
-            st.data_editor(df_filtrado, column_config={"Selecionar": st.column_config.CheckboxColumn(
-                "Selecionar",
-                default=True
-            )}, disabled=disabled_columns, use_container_width=True, hide_index=True)
+    elif opcao == "🗑️ Saídas (Histórico)":
+        st.title("Consulta Baixados")
+        st.caption("Ativos desativados e baixados do inventário")
+        st.divider()
+        df = carregar_dataFrameBaixas()
+        if not df.empty:
+            st.markdown("### 🔎 Consulta de Baixados")
+            filtro = st.text_input("Consultar Plaqueta ou Descrição").strip().upper()
+            df_filtrado = df[df['Plaqueta'].str.contains(filtro, case=False) | df['Desc. Bem'].str.contains(filtro, case=False)] if filtro else df
+            st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
         else:
-            st.header("Descrição não encontrada!")
-    else:
-        # Mostrar todos os equipamentos se nenhum filtro for inserido
-        st.data_editor(df, column_config={"Selecionar": st.column_config.CheckboxColumn(
-            "Selecionar",
-            default=True
-        )}, disabled=disabled_columns, use_container_width=True, hide_index=True)
+            st.warning("Banco de Baixados não disponível ou vazio.")
 
+    # --- RENDERIZAÇÃO DAS FUNÇÕES DOS OUTROS MÓDULOS ---
+    elif opcao == "📊 Dashboard Estoque":
+        render_estoque()
 
-if opcao == "Baixados":
-    st.title("Consulta Baixados")
+    elif opcao == "🕒 Histórico Geral":
+        render_historico()
 
-    # Carregar o dataframe
-    df = carregar_dataFrameBaixas()
+    elif opcao == "➡️ Saída Equipamentos":
+        render_saidas()
 
-    # Quebra de linha
-    st.header(" ")
+    elif opcao == "↩️ Retorno Equipamentos":
+        render_retornos()
 
-    # Campos consultas
-    filtro = st.text_input("Consultar Plaqueta ou Descrição")
-    filtro = filtro.strip().upper()
-    idade_min, idade_max = st.slider('Selecionar faixa de idade', min_value=int(df['idade'].min()), max_value=int(df['idade'].max()), value=(int(df['idade'].min()), int(df['idade'].max())))
-    df['Selecionar'] = False
-
-    # Desabilitar a edição de todas as colunas, exceto a última
-    disabled_columns = df.columns[:-1].tolist()    
-
-    if filtro or idade_min or idade_max:
-        df_filtrado = df[(df['Plaqueta'].str.contains(filtro, case=False) | df['Desc. Bem'].str.contains(filtro, case=False)) & 
-                        (df['idade'] >= idade_min) & 
-                        (df['idade'] <= idade_max)]
-        
-        if not df_filtrado.empty:
-            st.data_editor(df_filtrado, column_config={"Selecionar": st.column_config.CheckboxColumn(
-                "Selecionar",
-                default=True
-            )},  disabled=disabled_columns ,use_container_width=True, hide_index=True)
-        else:
-            st.header("Produto não encontrado!")
-    else:
-        # Mostrar todos os equipamentos se nenhum filtro for inserido
-        st.data_editor(df, column_config={"Selecionar": st.column_config.CheckboxColumn(
-            "Selecionar",
-            default=True
-        )}, disabled=disabled_columns, use_container_width=True, hide_index=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# # Página 2
-# if escolha == "Dashboard descarte":
-#     # Função para ler o arquivo excel
-#     def load_excel(file_path, sheet_name="Grupo"):
-#         if Path(file_path).exists():
-#             return pd.read_excel(file_path, sheet_name=sheet_name)
-#         else:
-#             st.error(f"Arquivo {file_path} não encontrado!")
-#             return None
-
-#     # Função para plotar gráfico de pizza
-#     def plot_pie_chart(data, labels):
-#         fig, ax = plt.subplots()
-#         ax.pie(data, labels=labels, autopct='%1.1f%%', startangle=140)
-#         return fig
-
-#     # Função para plotar gráfico de barras
-#     def plot_bar_chart(df_pompeia, df_gang):
-#         merged_df = pd.merge(df_pompeia, df_gang, on='Categoria', suffixes=('_pompeia', '_gang'))
-#         y = range(len(merged_df))
-        
-#         fig, ax = plt.subplots(figsize=(10, 14))
-#         ax.barh(y, merged_df['Quantidade_pompeia'], color='orange', alpha=0.6, label='Pompeia')
-#         ax.barh(y, merged_df['Quantidade_gang'], color='blue', alpha=0.6, left=merged_df['Quantidade_pompeia'], label='Gang')
-        
-#         ax.set_yticks(y)
-#         ax.set_yticklabels(merged_df['Categoria'])
-#         ax.set_xlabel('Quantidade')
-#         ax.legend()
-
-#         for i in y:
-#             ax.text(merged_df['Quantidade_pompeia'][i] / 2, i, str(merged_df['Quantidade_pompeia'][i]), va='center', ha='center', color='white')
-#             ax.text(merged_df['Quantidade_pompeia'][i] + merged_df['Quantidade_gang'][i] / 2, i, str(merged_df['Quantidade_gang'][i]), va='center', ha='center', color='white')
-
-#         return fig
-
-#     # CSS customizado
-#     st.markdown("""
-#         <style>
-#         .big-font {
-#             font-size:25px !important;
-#             text-align: center;
-#         }
-#         </style>
-#     """, unsafe_allow_html=True)
-
-#     # Caminho do arquivo Excel
-#     path_excel = r"C:\Users\usuario\Downloads\Relatório Descarte.xlsx"
-#     df = load_excel(path_excel)  # Utilizando a função load_excel
-
-#     if df is not None:
-#         df['DEFEITO'] = df['DEFEITO'].fillna("NÃO CLASSIFICADOS")
-#         df['Filial'] = df['Filial'].apply(int)
-#         df['Marca'] = df['Filial'].apply(lambda x: 'Pompeia' if 1 <= x <= 1000 else 'Gang')
-#         df['Data aquisição'] = pd.to_datetime(df['Data aquisição'],format='%d/%m/%Y') 
-#         df['Data aquisição'] = pd.to_datetime(df['Data aquisição']).dt.strftime('%d/%m/%Y')
-#         df = df.fillna(0)
-#         # Data atual
-#         data_atual = datetime.now()
-#         # Converter a coluna para datetime
-#         df['Data aquisição'] = pd.to_datetime(df['Data aquisição'], format='%d/%m/%Y')
-        
-#         # Calcular a idade em anos
-#         df['idade'] = (data_atual - df['Data aquisição']).dt.days / 365.25
-
-#         # Arredondar a idade para duas casas decimais
-#         df['idade'] = df['idade'].round(0).astype(int)
-
-#         # Converter a coluna portador para garantir a serelização do dataframe
-#         df['Portador'] = df['Portador'].astype(str)
-#         df['Fornecedor'] = df['Fornecedor'].astype(str)
-#         df['TECNICO'] = df['TECNICO'].astype(str)
-
-
-#         df = df.sort_values(by=['idade'])
-
-
-#         total_itens = df['Filial'].count()
-#         valor_total = df['Valor Aquisição'].sum().round(2)
-#         valor_total_formatado = format_currency(valor_total)
-        
-#         valor_total_pompeia = df[df['Marca'] == 'Pompeia']['Valor Aquisição'].sum()
-#         valor_total_pompeia_formatado = format_currency(valor_total_pompeia)
-        
-#         valor_total_gang = df[df['Marca'] == 'Gang']['Valor Aquisição'].sum()
-#         valor_total_gang_formatado = format_currency(valor_total_gang)
-        
-#         st.title("Relatório de descarte")
-#         col1, col2, col3 = st.columns(3)
-        
-#         col1.metric('Valor total acumulado', valor_total_formatado)
-#         col2.metric('Valor total acumulado Pompeia', valor_total_pompeia_formatado, valor_total_pompeia.round(2))
-#         col3.metric('Valor total acumulado Gang', valor_total_gang_formatado, valor_total_gang.round(2), delta_color="inverse")
-
-#         col9, col10, col11 = st.columns(3)
-#         st.header("",divider='red')
-
-#         col9.metric('Total Itens', df['Categoria'].count())
-#         col10.metric("Idade média dos itens Grupo",df['idade'].mean().round().astype(int))
-
-#         valor_medio_aquisicao = df['Valor Aquisição'].mean().round(2)
-#         valor_medio_aquisicao = locale.currency(valor_medio_aquisicao, grouping=True)
-#         col11.metric("Valor médio aquisição Grupo",valor_medio_aquisicao)
-
-#         col6, col7, col8 = st.columns(3)
-
-
-#         # Usando Markdown para adicionar quebra de linha
-#         st.markdown("\n")
-#         st.markdown("\n")
-        
-#         # Pagina 01 
-#         col4, col5 = st.columns(2)
-
-#         classificar = df.groupby('Marca').size().reset_index(name='Quantidade')
-#         col4.markdown('<p class="big-font">Distribuição por Marca</p>', unsafe_allow_html=True)
-#         fig_pizza = plot_pie_chart(classificar['Quantidade'], classificar['Marca'])
-#         col4.pyplot(fig_pizza)
-        
-#         df_pompeia = df[df['Marca'] == 'Pompeia'].groupby(['Categoria']).size().reset_index(name='Quantidade')
-#         df_gang = df[df['Marca'] == 'Gang'].groupby(['Categoria']).size().reset_index(name='Quantidade')
-        
-#         col5.markdown('<p class="big-font">Comparação de Quantidades por Categoria</p>', unsafe_allow_html=True)
-#         fig_barras = plot_bar_chart(df_pompeia, df_gang)
-#         col5.pyplot(fig_barras)
-
-#         st.title("Levantamento de descarte")
-
-#         st.header("Itens para Descarte", divider='red')
-#         # Obter os itens únicos da coluna 'Categoria'
-#         itens_para_descarte = df['Categoria'].unique()
-#         # Ordenar os itens
-#         itens_para_descarte = sorted(itens_para_descarte)
-
-#         # Criar quatro colunas
-#         col1, col2, col3, col4 = st.columns(4)
-
-#         # Distribuir os itens nas colunas
-#         colunas = [col1, col2, col3, col4]
-#         for i, item in enumerate(itens_para_descarte):
-#             colunas[i % 4].text(item)
-
-#         st.header("Tempo de uso (anos)", divider='red')
-#         # Supondo que df seja o seu DataFrame
-#         idades_unicas = df['idade'].unique()
-#         col1, col2, col3, col4 = st.columns(4)
-
-#         # Distribuir os itens nas colunas
-#         colunas = [col1, col2, col3, col4]
-#         for i, idade in enumerate(idades_unicas):
-#             colunas[i % 4].text(idade)
-
-#         # Adicionando a barra de pesquisa
-#         search_term = st.text_input("Pesquisar por Descrição", "")
-#         # Filtrando o DataFrame com base no texto de pesquisa
-#         filtered_df = df[df['Desc. Bem'].str.contains(search_term, case=False)]
-#         # Verificar se há resultados
-
-
-#         if len(filtered_df) > 0:
-#             st.title("Resultado da Pesquisa")
-#             # Calculate the min
-
-
-
-
+    elif opcao == "📈 Dashboard Sup":
+        render_sup()
