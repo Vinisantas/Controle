@@ -97,11 +97,10 @@ else:
         # Páginas disponíveis no menu
         paginas_disponiveis = [
             "🔍 Consulta Patrimônio",
-            "📦 Uso & Consumo",
-            "📊 Dashboard Estoque",
-            "🕒 Histórico Geral",
             "➡️ Saída Equipamentos",
             "↩️ Retorno Equipamentos",
+            "🕒 Histórico Geral",
+            "📊 Dashboard Estoque",
             "📈 Dashboard Sup",
             "🗑️ Saídas (Histórico)"
         ]
@@ -133,19 +132,6 @@ else:
         st.divider()
         render_patrimonio()
 
-    elif opcao == "📦 Uso & Consumo":
-        st.title("Consulta Uso e Consumo")
-        st.caption("Gerencie os insumos adicionais de TI")
-        st.divider()
-        df = carregar_dataframeUC()
-        if not df.empty:
-            st.markdown("### 🔎 Consulta de Descrição")
-            filtro = st.text_input("Digite o termo do insumo").strip().upper()
-            df_filtrado = df[df['Descricao'].str.contains(filtro, case=False)] if filtro else df
-            st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
-        else:
-            st.warning("Banco de Uso e Consumo não disponível ou vazio.")
-
     elif opcao == "🗑️ Saídas (Histórico)":
         st.title("Consulta Baixados")
         st.caption("Ativos desativados e baixados do inventário")
@@ -159,18 +145,20 @@ else:
         else:
             st.warning("Banco de Baixados não disponível ou vazio.")
 
-    # --- RENDERIZAÇÃO DAS FUNÇÕES DOS OUTROS MÓDULOS ---
-    elif opcao == "📊 Dashboard Estoque":
-        render_estoque()
-
-    elif opcao == "🕒 Histórico Geral":
-        render_historico()
-
     elif opcao == "➡️ Saída Equipamentos":
         render_saidas()
 
     elif opcao == "↩️ Retorno Equipamentos":
         render_retornos()
+
+    
+    elif opcao == "🕒 Histórico Geral":
+        render_historico()
+
+    # --- RENDERIZAÇÃO DAS FUNÇÕES DOS OUTROS MÓDULOS ---
+    elif opcao == "📊 Dashboard Estoque":
+        render_estoque()
+
 
     elif opcao == "📈 Dashboard Sup":
         render_sup()

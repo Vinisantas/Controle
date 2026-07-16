@@ -2,24 +2,110 @@ import streamlit as st
 import pandas as pd
 import requests
 import os
-from datetime import datetime, timedelta
+import time
+from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 from dotenv import load_dotenv
 
-# 🔑 carregar variáveis de ambiente
+# 🔑 Carregar variáveis de ambiente
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 PROJECT_ID = os.getenv("PROJECT_ID")
 
 # =====================================================
-# PAGE CONFIG 
+# CONFIGURAÇÃO DE CAMINHOS PARA BACKUP LOCAL (FALLBACK)
+# =====================================================
+BACKUP_DIR = "cache_backup"
+os.makedirs(BACKUP_DIR, exist_ok=True)
+
+PATH_BACKUP_MOVIDESK = os.path.join(BACKUP_DIR, "backup_movidesk.parquet")
+PATH_TS_MOVIDESK = os.path.join(BACKUP_DIR, "timestamp_movidesk.txt")
+
+PATH_BACKUP_ASANA = os.path.join(BACKUP_DIR, "backup_asana.parquet")
+PATH_TS_ASANA = os.path.join(BACKUP_DIR, "timestamp_asana.txt")
+
+
+# =====================================================
+# FUNÇÕES DE SUPORTE AO BACKUP
+# =====================================================
+def salvar_backup_local(df: pd.DataFrame, path_dados: str, path_ts: str):
+    """Salva os dados tratados em formato Parquet e atualiza o timestamp do backup."""
+    try:
+        df.to_parquet(path_dados, index=False)
+        with open(path_ts, "w") as f:
+            f.write(str(time.time()))
+    except Exception as e:
+        st.warning(f"Não foi possível salvar o backup local em {path_dados}: {e}")
+
+def obter_tempo_ultimo_backup(path_ts: str) -> float:
+    """Retorna o timestamp do último backup bem-sucedido."""
+    if os.path.exists(path_ts):
+        try:
+            with open(path_ts, "r") as f:
+                return float(f.read().strip())
+        except ValueError:
+            pass
+    return 0.0
+
+
+# =====================================================
+# RENDERIZAÇÃO DO STATUS DA CONEXÃO NA SIDEBAR
+# =====================================================
+def renderizar_status_conexoes(status_movidesk: str, status_asana: str):
+    """Renderiza na barra lateral o estado de conexão de cada serviço."""
+    st.sidebar.markdown("## 🔌 Status das Integrações")
+    st.sidebar.markdown("---")
+    
+    # --- STATUS MOVIDESK ---
+    st.sidebar.markdown("### 🖥️ Movidesk (Chamados)")
+    ts_movid = obter_tempo_ultimo_backup(PATH_TS_MOVIDESK)
+    
+    if status_movidesk == "ONLINE":
+        st.sidebar.markdown("🟢 **Online** (Tempo Real)")
+        st.sidebar.caption("Sincronizado com a API com sucesso.")
+    elif status_movidesk == "FALLBACK" and ts_movid > 0:
+        minutos = int((time.time() - ts_movid) // 60)
+        if minutos < 5:
+            st.sidebar.markdown("🟡 **Instabilidade detectada**")
+            st.sidebar.caption(f"Exibindo cache de {minutos} min atrás.")
+        else:
+            st.sidebar.markdown("🟠 **Modo Contingência**")
+            st.sidebar.error(f"Sem conexão há {minutos} min. Exibindo dados de cache.")
+    else:
+        st.sidebar.markdown("🔴 **Desconectado**")
+        st.sidebar.error("Sem conexão e sem backup local disponível.")
+        
+    st.sidebar.markdown("---")
+    
+    # --- STATUS ASANA ---
+    st.sidebar.markdown("### 🎯 Asana (Solicitações)")
+    ts_asana = obter_tempo_ultimo_backup(PATH_TS_ASANA)
+    
+    if status_asana == "ONLINE":
+        st.sidebar.markdown("🟢 **Online** (Tempo Real)")
+        st.sidebar.caption("Sincronizado com a API com sucesso.")
+    elif status_asana == "FALLBACK" and ts_asana > 0:
+        minutos = int((time.time() - ts_asana) // 60)
+        if minutos < 5:
+            st.sidebar.markdown("🟡 **Instabilidade detectada**")
+            st.sidebar.caption(f"Exibindo cache de {minutos} min atrás.")
+        else:
+            st.sidebar.markdown("🟠 **Modo Contingência**")
+            st.sidebar.error(f"Sem conexão há {minutos} min. Exibindo dados de cache.")
+    else:
+        st.sidebar.markdown("🔴 **Desconectado**")
+        st.sidebar.error("Sem conexão e sem backup local disponível.")
+
+
+# =====================================================
+# CONFIGURAÇÃO DA PÁGINA
 # =====================================================
 def render_estoque():
-    # Atualiza a cada 60 segundos
+    # Atualiza o dashboard automaticamente a cada 60 segundos
     st_autorefresh(interval=60 * 1000, key="refresh_estoque")
 
     # =====================================================
-    # CSS 
+    # CSS PERSONALIZADO (OTIMIZADO PARA TV/MODO ESCURO)
     # =====================================================
     st.markdown("""
     <style>
@@ -29,7 +115,7 @@ def render_estoque():
         color: white;
     }
 
-    /* TÍTULOS AJUSTADOS PARA TV */
+    /* TÍTULOS */
     h1 {
         font-size: 42px !important;
         background: linear-gradient(135deg, #3b82f6, #8b5cf6);
@@ -50,7 +136,7 @@ def render_estoque():
         color: white !important;
     }
 
-    /* CARDS DE MÉTRICAS - TAMANHO OTIMIZADO PARA TV */
+    /* CARDS DE MÉTRICAS */
     .metric-box {
         border-radius: 15px;
         padding: 15px;
@@ -142,7 +228,7 @@ def render_estoque():
         opacity: 0.8;
     }
 
-    /* TABELAS MELHORADAS */
+    /* TABELAS */
     .stDataFrame {
         background-color: #1e293b !important;
         border: 1px solid #374151 !important;
@@ -165,24 +251,6 @@ def render_estoque():
         border-bottom: 1px solid #334155 !important;
     }
 
-    .stDataFrame tbody tr:hover td {
-        background-color: #334155 !important;
-        transition: background-color 0.2s ease;
-    }
-
-    /* PROGRESS BAR */
-    .stProgress > div > div > div > div {
-        background: linear-gradient(90deg, #3b82f6, #8b5cf6) !important;
-    }
-
-    /* EXPANDER */
-    .streamlit-expanderHeader {
-        background: linear-gradient(135deg, #1e293b, #0f172a) !important;
-        color: white !important;
-        border-radius: 10px !important;
-        font-weight: bold !important;
-    }
-
     /* FOOTER */
     .footer {
         margin-top: 30px;
@@ -195,40 +263,7 @@ def render_estoque():
         border-radius: 12px;
     }
 
-    /* BOTÕES DE DOWNLOAD */
-    .stDownloadButton button {
-        background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 8px !important;
-        padding: 8px 16px !important;
-        font-weight: bold !important;
-    }
-
-    .stDownloadButton button:hover {
-        background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
-        transform: translateY(-2px);
-        transition: all 0.3s ease;
-    }
-
-    /* DIVIDERS */
-    hr {
-        border-color: #334155 !important;
-        margin: 20px 0 !important;
-    }
-
-    /* MÉTRICAS DO STREAMLIT */
-    [data-testid="stMetricValue"] {
-        font-size: 24px !important;
-        color: white !important;
-    }
-
-    [data-testid="stMetricLabel"] {
-        font-size: 13px !important;
-        color: #cbd5e1 !important;
-    }
-
-    /* INFO BOX SEM ALERTA */
+    /* INFO BOX */
     .info-normal {
         background: linear-gradient(135deg, #1e293b, #0f172a) !important;
         color: #cbd5e1 !important;
@@ -242,7 +277,7 @@ def render_estoque():
     """, unsafe_allow_html=True)
 
     # =====================================================
-    # FUNÇÕES MOVIDESK
+    # TRATAMENTO E NORMALIZAÇÃO DO MOVIDESK
     # =====================================================
     def normalizar_status(status, base):
         status = (status or "").lower()
@@ -270,10 +305,10 @@ def render_estoque():
             return original_urgency
 
     # =====================================================
-    # CARREGAR DADOS MOVIDESK
+    # CARREGAR DADOS MOVIDESK (RESILIENTE COM PARQUET REAL)
     # =====================================================
     @st.cache_data(ttl=120)
-    def carregar_dados_movidesk():
+    def carregar_dados_movidesk_resiliente():
         URL = "https://api.movidesk.com/public/v1/tickets"
         TOKEN_MOVIDESK = "b9991fdc-6754-4153-ac49-4c0116c1b4d1"
         FILTER_QUERY = "(ownerTeam eq 'Estoque TI')"
@@ -289,11 +324,12 @@ def render_estoque():
         }
 
         try:
-            r = requests.get(URL, params=params, timeout=30)
+            # 1. Faz a requisição na API com timeout seguro
+            r = requests.get(URL, params=params, timeout=15)
             if r.status_code != 200:
-                st.error(f"❌ Erro API Movidesk: {r.status_code}")
-                return pd.DataFrame()
+                raise Exception(f"Código HTTP {r.status_code}")
 
+            # 2. Transforma a resposta da API em DataFrame tratado
             lista = []
             for t in r.json():
                 status = normalizar_status(t.get("status"), t.get("baseStatus"))
@@ -309,7 +345,6 @@ def render_estoque():
 
                 agora = pd.Timestamp.now()
                 dias_aberto = (agora - data_criacao).days
-                
                 is_new = (agora - data_criacao).total_seconds() < 86400
                 
                 cliente = t.get("clients")[0] if t.get("clients") else {}
@@ -334,20 +369,35 @@ def render_estoque():
                     "Urgência Original": urgencia_original
                 })
 
-            return pd.DataFrame(lista)
+            df_api = pd.DataFrame(lista)
+            
+            # 3. Salva o DataFrame tratado na máquina se tudo deu certo
+            salvar_backup_local(df_api, PATH_BACKUP_MOVIDESK, PATH_TS_MOVIDESK)
+            return df_api.copy(), "ONLINE"
             
         except Exception as e:
-            st.error(f"❌ Erro ao carregar Movidesk: {str(e)}")
-            return pd.DataFrame()
+            # Fallback de Contingência: Se a API falhar, busca o backup local Parquet
+            if os.path.exists(PATH_BACKUP_MOVIDESK):
+                try:
+                    df_backup = pd.read_parquet(PATH_BACKUP_MOVIDESK)
+                    # Certificar que as colunas de data recuperadas continuam como datetime
+                    if "DataCriacao" in df_backup.columns:
+                        df_backup["DataCriacao"] = pd.to_datetime(df_backup["DataCriacao"])
+                    if "DataFechamento" in df_backup.columns:
+                        df_backup["DataFechamento"] = pd.to_datetime(df_backup["DataFechamento"])
+                    return df_backup.copy(), "FALLBACK"
+                except Exception:
+                    pass
+            return pd.DataFrame(), "OFFLINE"
+
 
     # =====================================================
-    # CARREGAR DADOS ASANA
+    # CARREGAR DADOS ASANA (RESILIENTE COM PARQUET REAL)
     # =====================================================
     @st.cache_data(ttl=120)
-    def carregar_dados_asana():
+    def carregar_dados_asana_resiliente():
         if not PROJECT_ID:
-            st.warning("⚠️ PROJECT_ID não configurado no arquivo .env")
-            return pd.DataFrame()
+            return pd.DataFrame(), "OFFLINE"
         
         url = f"https://app.asana.com/api/1.0/projects/{PROJECT_ID}/tasks"
         headers = {"Authorization": f"Bearer {TOKEN}"}
@@ -370,10 +420,10 @@ def render_estoque():
         }
 
         try:
-            response = requests.get(url, headers=headers, params=params, timeout=30)
+            # 1. Requisição à API do Asana
+            response = requests.get(url, headers=headers, params=params, timeout=15)
             if response.status_code != 200:
-                st.error(f"❌ Erro na API Asana: {response.status_code}")
-                return pd.DataFrame()
+                raise Exception(f"Código HTTP {response.status_code}")
 
             data = response.json()
             
@@ -420,33 +470,44 @@ def render_estoque():
                     "Seção": get_safe(task, ['memberships', 0, 'section', 'name']) or "Não informado",
                 })
 
-            df = pd.DataFrame(tasks_list)
-            df.fillna("Não informado", inplace=True)
-            return df
+            df_api = pd.DataFrame(tasks_list)
+            df_api.fillna("Não informado", inplace=True)
             
-        except Exception as e:
-            st.error(f"❌ Erro ao carregar Asana: {str(e)}")
-            return pd.DataFrame()
+            # 2. Salva localmente se obteve sucesso
+            salvar_backup_local(df_api, PATH_BACKUP_ASANA, PATH_TS_ASANA)
+            return df_api.copy(), "ONLINE"
+            
+        except Exception:
+            # Fallback de Contingência: Se falhar, busca o backup Parquet
+            if os.path.exists(PATH_BACKUP_ASANA):
+                try:
+                    df_backup = pd.read_parquet(PATH_BACKUP_ASANA)
+                    return df_backup.copy(), "FALLBACK"
+                except Exception:
+                    pass
+            return pd.DataFrame(), "OFFLINE"
+
 
     # =====================================================
-    # HEADER PRINCIPAL
+    # PROCESSAMENTO E EXIBIÇÃO DO DASHBOARD
     # =====================================================
     st.markdown("# 📊 Dashboard Integrado - TI | Estoque")
-    st.caption(f"🕐 Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')} ")
+    st.caption(f"🕐 Última atualização local: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 
-    # =====================================================
-    # CARREGAR TODOS OS DADOS
-    # =====================================================
-    with st.spinner("🔄 Carregando dados..."):
-        df_asana = carregar_dados_asana()
-        df_movidesk = carregar_dados_movidesk()
+    # Carregar dados usando funções resilientes com fallback
+    with st.spinner("🔄 Atualizando painéis e conexões..."):
+        df_asana, status_asana = carregar_dados_asana_resiliente()
+        df_movidesk, status_movidesk = carregar_dados_movidesk_resiliente()
+
+    # Renderiza indicadores de rede na barra lateral (Sidebar)
+    renderizar_status_conexoes(status_movidesk, status_asana)
 
     # =====================================================
     # SEÇÃO 1: TODOS OS KPIs NO TOPO
     # =====================================================
     st.markdown("---")
 
-    # Primeira linha: KPIs do Asana
+    # KPIs do Asana
     st.markdown("### 🎯 Solicitações de Equipamento - Asana")
 
     if not df_asana.empty:
@@ -490,7 +551,7 @@ def render_estoque():
 
     st.markdown("---")
 
-    # Segunda linha: KPIs do Movidesk
+    # KPIs do Movidesk
     st.markdown("### 🖥️ Chamados Estoque TI - Movidesk")
 
     if not df_movidesk.empty:
@@ -527,14 +588,12 @@ def render_estoque():
             """, unsafe_allow_html=True)
         
         with col4:
-            agora_ts = pd.Timestamp.now(tz="America/Sao_Paulo").tz_localize(None)
+            agora_ts = pd.Timestamp.now()
             inicio_mes_atual = agora_ts.to_period("M").start_time
-            inicio_prox_mes = (agora_ts.to_period("M") + 1).start_time
             fechados = len(
                 df_movidesk[
                     (df_movidesk["Status"] == "Fechado")
                     & (df_movidesk["DataFechamento"] >= inicio_mes_atual)
-                    & (df_movidesk["DataFechamento"] < inicio_prox_mes)
                 ]
             )
             st.markdown(f"""
@@ -547,11 +606,11 @@ def render_estoque():
         
         st.markdown("---")
         
-        # Cards de Métricas de Tempo (coloridos)
+        # Cards de Métricas de Tempo
         st.markdown("#### ⏱️ Métricas de Tempo - Chamados Ativos")
         col_t1, col_t2, col_t3, col_t4 = st.columns(4)
         
-        chamados_ativos = df_movidesk[df_movidesk["Status"] != "Fechado"]
+        chamados_ativos = df_movidesk[df_movidesk["Status"] != "Fechado"] if not df_movidesk.empty else pd.DataFrame()
         
         with col_t1:
             tempo_medio = chamados_ativos["Dias"].mean() if not chamados_ativos.empty else 0
@@ -576,7 +635,7 @@ def render_estoque():
             """, unsafe_allow_html=True)
         
         with col_t3:
-            tickets_criticos = len(chamados_ativos[chamados_ativos["Dias"] > 30])
+            tickets_criticos = len(chamados_ativos[chamados_ativos["Dias"] > 30]) if not chamados_ativos.empty else 0
             cor_critico = "metric-tempo-verde" if tickets_criticos == 0 else "metric-tempo-amarelo" if tickets_criticos <= 3 else "metric-tempo-vermelho"
             st.markdown(f"""
                 <div class="metric-box {cor_critico}">
@@ -587,7 +646,7 @@ def render_estoque():
             """, unsafe_allow_html=True)
         
         with col_t4:
-            tickets_urgentes = len(chamados_ativos[chamados_ativos["Dias"] > 40])
+            tickets_urgentes = len(chamados_ativos[chamados_ativos["Dias"] > 40]) if not chamados_ativos.empty else 0
             cor_urgente = "metric-tempo-verde" if tickets_urgentes == 0 else "metric-tempo-vermelho"
             st.markdown(f"""
                 <div class="metric-box {cor_urgente}">
@@ -604,19 +663,19 @@ def render_estoque():
         col_res1, col_res2, col_res3, col_res4 = st.columns(4)
         
         with col_res1:
-            ate_7 = len(chamados_ativos[chamados_ativos["Dias"] <= 7])
+            ate_7 = len(chamados_ativos[chamados_ativos["Dias"] <= 7]) if not chamados_ativos.empty else 0
             st.metric("📅 Até 7 dias", ate_7)
         
         with col_res2:
-            ate_30 = len(chamados_ativos[(chamados_ativos["Dias"] > 7) & (chamados_ativos["Dias"] <= 30)])
+            ate_30 = len(chamados_ativos[(chamados_ativos["Dias"] > 7) & (chamados_ativos["Dias"] <= 30)]) if not chamados_ativos.empty else 0
             st.metric("📅 8-30 dias", ate_30)
         
         with col_res3:
-            ate_40 = len(chamados_ativos[(chamados_ativos["Dias"] > 30) & (chamados_ativos["Dias"] <= 40)])
+            ate_40 = len(chamados_ativos[(chamados_ativos["Dias"] > 30) & (chamados_ativos["Dias"] <= 40)]) if not chamados_ativos.empty else 0
             st.metric("📅 31-40 dias", ate_40)
         
         with col_res4:
-            mais_40 = len(chamados_ativos[chamados_ativos["Dias"] > 40])
+            mais_40 = len(chamados_ativos[chamados_ativos["Dias"] > 40]) if not chamados_ativos.empty else 0
             st.metric("📅 +40 dias", mais_40)
     else:
         st.markdown("""
@@ -648,7 +707,7 @@ def render_estoque():
                         "Solicitante": st.column_config.Column(width="medium"),
                         "Empresa": st.column_config.Column(width="small"),
                         "Tipo_Solicitacao": st.column_config.Column(width="small"),
-                        "lojas": st.column_config.Column(width="small")
+                        "Lojas": st.column_config.Column(width="small")
                     }
                 )
                 st.markdown(f"""
@@ -669,10 +728,6 @@ def render_estoque():
                 </div>
             """, unsafe_allow_html=True)
 
-
-
-            
-
     # Tabela do Movidesk
     with st.expander("📋 Chamados Ativos - Estoque TI", expanded=True):
         if not df_movidesk.empty:
@@ -685,7 +740,7 @@ def render_estoque():
                     </div>
                 """, unsafe_allow_html=True)
             else:
-                # Formatar para exibição
+                # Formatar ícones informativos
                 df_display["Status_icon"] = df_display["Status"].apply(
                     lambda x: "🟢 Aberto" if x == "Aberto" else "🟡 Em Atend."
                 )
@@ -697,7 +752,7 @@ def render_estoque():
                     lambda x: "🔴 ALTO" if x > 30 else "🟡 Médio" if x > 20 else "🟢 Baixo"
                 )
                 
-                # Ordenar por prioridade
+                # Ordenar por criticidade
                 df_display = df_display.sort_values("Dias", ascending=False)
                 
                 st.dataframe(
@@ -721,7 +776,7 @@ def render_estoque():
         else:
             st.markdown("""
                 <div class="info-normal">
-                    ⚠️ Nenhum chamado encontrado no Movidesk
+                    ⚠️ Nenhum chamado em aberto no Movidesk
                 </div>
             """, unsafe_allow_html=True)
 
@@ -732,7 +787,7 @@ def render_estoque():
         col_down1, col_down2 = st.columns(2)
         
         with col_down1:
-            st.markdown("**📊 Relatório Movidesk**")
+            st.markdown("**📊 Dados do Movidesk**")
             if not df_movidesk.empty:
                 csv_movidesk = df_movidesk.to_csv(index=False).encode('utf-8')
                 st.download_button(
@@ -742,15 +797,9 @@ def render_estoque():
                     mime="text/csv",
                     use_container_width=True
                 )
-                
-                # Estatísticas rápidas
-                st.markdown("**📈 Estatísticas Rápidas:**")
-                st.write(f"- Total de chamados: {len(df_movidesk)}")
-                st.write(f"- Chamados ativos: {len(df_movidesk[df_movidesk['Status'] != 'Fechado'])}")
-                st.write(f"- Média de dias: {df_movidesk['Dias'].mean():.1f}")
         
         with col_down2:
-            st.markdown("**🎯 Relatório Asana**")
+            st.markdown("**🎯 Dados do Asana**")
             if not df_asana.empty:
                 csv_asana = df_asana.to_csv(index=False).encode('utf-8')
                 st.download_button(
@@ -760,32 +809,9 @@ def render_estoque():
                     mime="text/csv",
                     use_container_width=True
                 )
-                
-                # Estatísticas rápidas
-                st.markdown("**📈 Estatísticas Rápidas:**")
-                st.write(f"- Total de solicitações: {len(df_asana)}")
-                st.write(f"- Solicitações ativas: {len(df_asana[df_asana['Status'] != 'Concluído'])}")
-                st.write(f"- Aguardando separador: {len(df_asana[df_asana['Tipo'] == '🆕 Novo'])}")
 
     # =====================================================
-    # SEÇÃO 4: TOP SOLICITANTES
-    # =====================================================
-    if not df_movidesk.empty:
-        with st.expander("🏆 Top Solicitantes - Ranking"):
-            top_solicitantes = df_movidesk[df_movidesk['Status'] != 'Fechado']['Solicitante'].value_counts().head(10)
-            if not top_solicitantes.empty:
-                st.markdown("**Top 10 solicitantes com chamados ativos:**")
-                for i, (solicitante, qtd) in enumerate(top_solicitantes.items(), 1):
-                    st.markdown(f"{i}. **{solicitante}** - {qtd} chamado(s)")
-            else:
-                st.markdown("""
-                    <div class="info-normal">
-                        📭 Nenhum chamado ativo no momento
-                    </div>
-                """, unsafe_allow_html=True)
-
-    # =====================================================
-    # LEGENDA DE CORES
+    # SEÇÃO 4: GUIA DE CORES E STATUS
     # =====================================================
     with st.expander("🎨 Guia de Cores e Status"):
         col_leg1, col_leg2, col_leg3 = st.columns(3)
@@ -808,34 +834,29 @@ def render_estoque():
             st.markdown("🔴 **Alta**")
             st.markdown("🟡 **Média**")
             st.markdown("🟢 **Baixa**")
-            st.markdown("---")
-            st.markdown("**⏱️ Tempo Médio**")
-            st.markdown("🟢 **Verde** - ≤ 15 dias")
-            st.markdown("🟡 **Amarelo** - 16-30 dias")
-            st.markdown("🔴 **Vermelho** - > 30 dias")
-        
+            
         with col_leg3:
-            st.markdown("**🖥️ Movidesk - Risco**")
-            st.markdown("🔴 **ALTO** - +30 dias")
-            st.markdown("🟡 **Médio** - 21-30 dias")
-            st.markdown("🟢 **Baixo** - Até 20 dias")
-            st.markdown("---")
-            st.markdown("**📊 Progresso**")
-            st.markdown("Barra colorida indica tempo decorrido")
-            st.markdown("**💡 Dica:**")
-            st.markdown("Passe o mouse nos cards para animação")
+            st.markdown("**⏱️ Tempo de Resolução**")
+            st.markdown("🟢 **Seguro** - Menos de 15 dias")
+            st.markdown("🟡 **Atenção** - 15 a 30 dias")
+            st.markdown("🔴 **Grave** - Mais de 30 dias")
 
     # =====================================================
     # FOOTER
     # =====================================================
-    st.markdown("---")
     st.markdown("""
-    <div class="footer">
-        <strong>📊 Dashboard Integrado - TI | Modo TV 55"</strong><br>
-        🎯 Asana: Solicitações de Equipamento | 🖥️ Movidesk: Chamados Estoque TI<br>
-        🔥 +40 dias = CRÍTICO | ⚠️ +30 dias = URGENTE | 🕒 Atualização: 60 segundos<br>
-        💡 Clique nos links para abrir os chamados | Baixe relatórios na seção de downloads
-    </div> 
+        <div class="footer">
+            💻 Painel Integrado TI - Gestão de Estoque • Desenvolvido para exibição contínua
+        </div>
     """, unsafe_allow_html=True)
 
-    st.caption("🔄 Dashboard atualiza automaticamente a cada 60 segundos | 📦 Novas solicitações em destaque")
+
+# Inicializador Principal do Streamlit
+if __name__ == "__main__":
+    st.set_page_config(
+        page_title="Dashboard TI - Estoque",
+        page_icon="📊",
+        layout="wide",
+        initial_sidebar_state="expanded"  # Força a exibição da barra lateral com os status
+    )
+    render_estoque()
