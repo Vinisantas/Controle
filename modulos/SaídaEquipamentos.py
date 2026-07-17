@@ -249,7 +249,7 @@ def render_saidas():
         with c_cat1:
             Motivo = st.selectbox(
                 "Motivo da Saída 📋",
-                options=["Substituição por Defeito (Incidente)", "Upgrade / Melhoria", "Nova Instalação / Demanda", "Empréstimo Temporário", "Manutenção Preventiva"]
+                options=["Substituição por Defeito (Incidente)", "Upgrade / Melhoria", "Nova Instalação / Demanda","Assistência", "Empréstimo Temporário", "Manutenção Preventiva"]
             )
         with c_cat2:
             Status_Equipamento = st.selectbox(
@@ -262,7 +262,7 @@ def render_saidas():
         # Linha 3: Tipo de Destino
         Tipo_Destino = st.radio(
             "Destino da Saída 📍",
-            options=["Loja / Filial", "Setor Interno", "Usuário Direto"],
+            options=["Loja / Filial", "Setor Interno", "Assistencia"],
             horizontal=True
         )
 
@@ -277,8 +277,8 @@ def render_saidas():
                 placeholder_destino = "Ex: Controladoria / Almoxarifado"
                 label_destino = "Nome do Setor Interno ⚙️"
             else:
-                placeholder_destino = "Ex: João Silva (Técnico)"
-                label_destino = "Nome do Usuário Final 👤"
+                placeholder_destino = "Ex: Enio (Conserto)"
+                label_destino = "Nome do Fornecedor"
                 
             Destinatario_Final = st.text_input(label_destino, placeholder=placeholder_destino)
 
@@ -299,7 +299,7 @@ def render_saidas():
 
         # NOVA SEÇÃO: Observações e Defeito
         Observacao = st.text_area(
-            "Observações / Detalhes do Defeito (Assistência) 🔍", 
+            "Observações / Detalhes do Defeito caso Assistência", 
             placeholder="Caso seja assistência ou substituição, descreva o problema, defeito relatado ou detalhes extras aqui..."
         )
 
