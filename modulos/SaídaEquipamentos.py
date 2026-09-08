@@ -109,7 +109,7 @@ def render_saidas():
                         # Atualiza os dados de Portador e Local com base na Plaqueta
                         cursor_pat.execute(f"""
                             UPDATE [{nome_tabela}]
-                            SET Portador = ?, "Desc. Local" = ?
+                            SET Portador = ?, "Filial" = ?
                             WHERE RTRIM(LTRIM(REPLACE(Plaqueta, '.0', ''))) = ?
                         """, (Destinatario, Destinatario, Patrimonio))
                         

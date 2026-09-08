@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import os
 import io
+import streamlit.components.v1 as components
 
 def render_retornos():
     # Customização CSS para o formulário grafite premium e textos claros
@@ -31,7 +32,6 @@ def render_retornos():
         }
         </style>
     """, unsafe_allow_html=True)
-
     # Garante que a pasta existe
     if not os.path.exists("Banco Dados"):
         os.makedirs("Banco Dados")
@@ -98,6 +98,33 @@ def render_retornos():
         ''', (Patrimonio, Descricao, Loja, Chamado, Notafiscal, Data.isoformat()))
         conn.commit()
         conn.close()
+
+                # 2. ATUALIZA PORTADOR E LOCAL NO CADASTRO DE PATRIMÔNIO (Se houver patrimônio válido)
+        if Patrimonio and Patrimonio != "SEM PATRIMÔNIO":
+            if os.path.exists(BUSCA_PLAQUETA):
+                try:
+                    conn_pat = sqlite3.connect(BUSCA_PLAQUETA)
+                    cursor_pat = conn_pat.cursor()
+                    
+                    # Encontra o nome exato da tabela no banco de patrimônios
+                    cursor_pat.execute("SELECT name FROM sqlite_master WHERE type='table';")
+                    tabelas = cursor_pat.fetchall()
+                    
+                    for tabela in tabelas:
+                        nome_tabela = tabela[0]
+                        # Atualiza os dados de Portador e Local com base na Plaqueta
+                        cursor_pat.execute(f"""
+                            UPDATE [{nome_tabela}]
+                            SET Portador = "ESTOQUE TI", "Filial" = "1000"
+                            WHERE RTRIM(LTRIM(REPLACE(Plaqueta, '.0', ''))) = ?
+                        """, (Patrimonio,))
+                        
+                    conn_pat.commit()
+                    conn_pat.close()
+                    # Limpa o cache para atualizar a busca do patrimônio em tempo real!
+                    st.cache_data.clear()
+                except Exception as e:
+                    st.error(f"⚠️ Erro ao atualizar o Portador no cadastro de patrimônio: {e}")
 
 
 
@@ -344,3 +371,32 @@ def render_retornos():
                     st.rerun()
         else:
             st.info("Nenhum registro correspondente encontrado para exibição.")
+            # COLE ISSO NA ÚLTIMA LINHA DO SEU ARQUIVO DO FORMULÁRIO (NÃO ALTERA NADA DO SEU CÓDIGO)
+    components.html(
+                """
+            <link rel="stylesheet" href="https://jsdelivr.net">
+            <style>
+            .simple-keyboard { position: fixed; bottom: 10px; left: 5%; width: 90%; max-width: 1000px; z-index: 99999; background: #eceff1; box-shadow: 0px 4px 15px rgba(0,0,0,0.3); }
+            .hg-button { height: 50px !important; font-size: 18px !important; }
+            </style>
+            <div class="simple-keyboard"></div>
+            <script src="https://jsdelivr.net"></script>
+            <script>
+            const Keyboard = window.SimpleKeyboard.default;
+            let activeInput = null;
+            const myKeyboard = new Keyboard({
+                onChange: input => { if(activeInput) { activeInput.value = input; activeInput.dispatchEvent(new Event("input", { bubbles: true })); } },
+                layout: { default: ["q w e r t y u i o p", "a s d f g h j k l ç", "{shift} z x c v b n m {backspace}", "{space}"], shift: ["Q W E R T Y U I O P", "A S D F G H J K L Ç", "{shift} Z X C V B N M {backspace}", "{space}"] }
+            });
+            parent.document.querySelectorAll("input[type=text], textarea").forEach(input => {
+                input.addEventListener("focus", e => { activeInput = e.target; myKeyboard.setInput(e.target.value); });
+            });
+            </script>
+            """,
+                height=0,
+                width=0,
+            )
+
+            
+
+

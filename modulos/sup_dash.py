@@ -12,15 +12,15 @@ TOKEN = "b9991fdc-6754-4153-ac49-4c0116c1b4d1"
 ALERTA_INTERVALO_SEGUNDOS = int(os.getenv("ALERTA_INTERVALO_SEGUNDOS", "60"))
 URL = "https://api.movidesk.com/public/v1/tickets"
 FILTER_QUERY = "(ownerTeam eq 'Suporte Técnico')"
-SELECT_FIELDS = "id,status,baseStatus,subject,createdDate,clients,urgency,lastActionDate,owner"
-EXPAND = "clients($expand=organization),owner"
+SELECT_FIELDS = "id,status,baseStatus,subject,createdDate,clients,urgency,lastActionDate,owner,actions"
+EXPAND = "clients($expand=organization),owner,actions"
 
 # =====================================================
 # CONFIGURAÇÃO DA PÁGINA
 # =====================================================
 def render_sup():
     # Atualiza a cada 30 segundos
-    st_autorefresh(interval=15 * 1000, key="refresh_sup")
+    st_autorefresh(interval=30 * 1000, key="refresh_sup")
 
     # =====================================================
     # CSS PARA SUAVIZAR O REFRESH E MANTER A COR DE FUNDO
@@ -259,7 +259,24 @@ def render_sup():
                 urgencia_original = ticket.get("urgency") or "Não definida"
                 urgencia = get_urgency_status(dias_aberto, urgencia_original)
                 risco = get_risk_level(dias_aberto)
-
+                                # ---- CAPTURA DA ÚLTIMA MOVIMENTAÇÃO ----
+                actions = ticket.get("actions", [])
+                ultima_movimentacao = "Sem movimentação"
+                if actions:
+                    # Pega a última ação da lista (a mais recente)
+                    ultima_acao = actions[-1]
+                    # O Movidesk armazena o texto formatado no campo 'description'
+                    descricao_html = ultima_acao.get("description") or ""
+                    if descricao_html:
+                        # Remove as tags HTML de forma simples para o Pandas/Streamlit
+                        import re
+                        texto_limpo = re.sub(r'<[^>]+>', '', descricao_html) # Remove tags como <p>, <div>
+                        # Decodifica caracteres especiais do HTML (ex: &nbsp;, &aacute;)
+                        import html
+                        ultima_movimentacao = html.unescape(texto_limpo).strip()
+                        # Opcional: Limita o tamanho do texto para não quebrar o layout da tabela
+                        if len(ultima_movimentacao) > 100:
+                            ultima_movimentacao = ultima_movimentacao[:100] + "..."
                 registros.append({
                     "ID": ticket.get("id"),
                     "Link": f"https://grupolinsferrao.movidesk.com/Ticket/Edit/{ticket.get('id')}",
@@ -274,7 +291,8 @@ def render_sup():
                     "DataCriacao": data_criacao,
                     "DataFechamento": data_fechamento,
                     "Criado em": data_criacao.strftime('%d/%m/%Y %H:%M'),
-                    "Urgência Original": urgencia_original
+                    "Urgência Original": urgencia_original,
+                    "ultima_movimentacao": ultima_movimentacao
                 })
             return pd.DataFrame(registros)
         except Exception as e:
@@ -458,7 +476,7 @@ def render_sup():
         df_display.drop("_ordem_risco", axis=1, inplace=True)
 
         df_table = df_display[[
-            "Técnico", "ID", "Assunto", "Solicitante",
+            "Técnico", "ID", "Assunto", "ultima_movimentacao", "Solicitante",
             "Status", "Urgência", "Risco", "Dias", "Link"
         ]].rename(columns={
             "ID": "Ticket",
@@ -475,6 +493,7 @@ def render_sup():
                 "Técnico": st.column_config.Column(width="medium"),
                 "Ticket": st.column_config.Column(width="small"),
                 "Assunto": st.column_config.Column(width="large"),
+                "Ultima_movimentacao ": st.column_config.Column(width="large"),
                 "Solicitante": st.column_config.Column(width="medium"),
                 "Status": st.column_config.Column(width="small"),
                 "Urgência": st.column_config.Column(width="small"),
