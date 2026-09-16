@@ -46,7 +46,6 @@ def render_saidas():
     st.title("🚀 Controle de Saída de Equipamentos")
 
     df_banco = saida_repository.carregar_dados()
-    st.write(len(df_banco))
 
     dados = render_formulario_saida()
 

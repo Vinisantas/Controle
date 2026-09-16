@@ -1,2 +1,96 @@
 [client]
 showSidebarNavigation = false
+
+[theme]
+
+base = "light"
+
+primaryColor = "#C85C5C"
+
+font = "sans-serif"
+
+baseRadius = "medium"
+
+buttonRadius = "medium"
+
+showWidgetBorder = true
+
+showSidebarBorder = true
+
+
+# ============================================================
+# LIGHT
+# Cinza institucional / corporativo
+# ============================================================
+
+[theme.light]
+
+backgroundColor = "#C8CBCF"
+
+secondaryBackgroundColor = "#BFC3C7"
+
+textColor = "#292C30"
+
+borderColor = "#AEB3B8"
+
+dataframeBorderColor = "#AEB3B8"
+
+dataframeHeaderBackgroundColor = "#B9BDC1"
+
+redColor = "#C85C5C"
+
+redBackgroundColor = "#E5CACA"
+
+redTextColor = "#9E4545"
+
+
+[theme.light.sidebar]
+
+backgroundColor = "#BFC3C7"
+
+secondaryBackgroundColor = "#C8CBCF"
+
+textColor = "#292C30"
+
+borderColor = "#AEB3B8"
+
+dataframeBorderColor = "#AEB3B8"
+
+
+# ============================================================
+# DARK
+# Grafite claro / corporativo
+# ============================================================
+
+[theme.dark]
+
+backgroundColor = "#565A5E"
+
+secondaryBackgroundColor = "#5D6165"
+
+textColor = "#F1F2F3"
+
+borderColor = "#707478"
+
+dataframeBorderColor = "#707478"
+
+dataframeHeaderBackgroundColor = "#686C70"
+
+redColor = "#D16A6A"
+
+redBackgroundColor = "#664343"
+
+redTextColor = "#F2AAAA"
+
+
+[theme.dark.sidebar]
+
+backgroundColor = "#5D6165"
+
+secondaryBackgroundColor = "#565A5E"
+
+textColor = "#F1F2F3"
+
+borderColor = "#707478"
+
+dataframeBorderColor = "#707478"
