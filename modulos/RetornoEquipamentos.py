@@ -1,9 +1,26 @@
 import streamlit as st
 import pandas as pd
 import io
+import sqlite3
 import streamlit.components.v1 as components
 from services import retorno_service
 from repositories import retorno_repository
+
+
+def buscar_ultimo_envio(patrimonio):
+    """Recupera o último envio para automatizar o retorno ligado ao chamado."""
+    try:
+        with sqlite3.connect("Banco Dados/saida.sqlite") as conn:
+            return conn.execute(
+                """SELECT Destinatario, Chamado, Motivo, Data
+                   FROM saida
+                   WHERE CAST(Patrimonio AS INTEGER) = CAST(? AS INTEGER)
+                   ORDER BY Data DESC, id DESC LIMIT 1""",
+                (str(patrimonio).strip(),),
+            ).fetchone()
+    except Exception:
+        return None
+
 
 def render_retornos():
     # Customização CSS para o formulário grafite premium e textos claros
@@ -59,7 +76,9 @@ def render_retornos():
     df_banco = retorno_repository.carregar_dados()
 
     # 3. DISPOSIÇÃO DO LAYOUT PRINCIPAL
-    _, center_body, _ = st.columns([0.5, 4, 0.5], gap="large")
+    # O formulário ocupa a largura útil da tela para ganhar aparência de
+    # sistema profissional, sem o antigo "bloco estreito" centralizado.
+    center_body = st.container()
 
     with center_body:
         # Mantém o design escuro customizado
@@ -68,12 +87,20 @@ def render_retornos():
         st.write("") 
 
         # 1. Opção para itens sem patrimônio de fábrica ou não catalogados
-        Sem_Patrimonio = st.checkbox("Item sem Patrimônio / Não Catalogado ⚠️")
+        st.markdown(
+            '<div class="vs-form-kicker">ENTRADA DE EQUIPAMENTO</div>'
+            '<div class="vs-form-heading">Registrar retorno</div>'
+            '<div class="vs-form-help">Use este fluxo somente para equipamentos que precisam voltar: principalmente trocas vinculadas a chamados Movidesk ou empréstimos temporários.</div>',
+            unsafe_allow_html=True,
+        )
+        Sem_Patrimonio = st.checkbox("Item sem Patrimônio / Não Catalogado")
         
         # Inicialização das variáveis que vão abastecer os campos
         Patrimonio = "SEM PATRIMÔNIO"
         Descricao = ""
         Loja_Sugerida = ""
+        Chamado_Sugerido = ""
+        Motivo_Ultimo_Envio = ""
         Desabilitar_Campos = False
 
         # 2. FLUXO COM PATRIMÔNIO: Ativa a busca automática e puxa os dados do banco
@@ -94,6 +121,11 @@ def render_retornos():
                     else:
                         Descricao = dados_patrimonio["descricao"]
                         Loja_Sugerida = dados_patrimonio["loja"]
+                        ultimo_envio = buscar_ultimo_envio(Patrimonio)
+                        if ultimo_envio:
+                            Loja_Sugerida = Loja_Sugerida or str(ultimo_envio[0] or "")
+                            Chamado_Sugerido = str(ultimo_envio[1] or "")
+                            Motivo_Ultimo_Envio = str(ultimo_envio[2] or "")
                         st.toast("🔍 Dados do ativo carregados!", icon="✅")
                 except sqlite3.Error as e:
                     st.error(f"Erro ao processar busca no cadastro: {e}")
@@ -122,11 +154,17 @@ def render_retornos():
         # Campos operacionais complementares
         c_form1, c_form2 = st.columns(2)
         with c_form1:
-            Chamado = st.text_input("Chamado 🛠️", placeholder="#45091")
+            Chamado = st.text_input(
+                "Chamado Movidesk 🛠️",
+                value=Chamado_Sugerido,
+                placeholder="#45091",
+            )
         with c_form2:
             Notafiscal = st.text_input("Nota Fiscal 📄", placeholder="NF-7731")
             
-        Data = st.date_input("Data de Retorno 📅", format="DD/MM/YYYY")
+        Data = st.date_input("Data de Retorno 📅", value=__import__("datetime").date.today(), format="DD/MM/YYYY")
+        if Motivo_Ultimo_Envio:
+            st.caption(f"↩️ Última saída: {Motivo_Ultimo_Envio}. O chamado acima foi sugerido automaticamente.")
 
         st.write("") 
         submit_button = st.button('💾 Confirmar Recebimento', use_container_width=True, type="primary")

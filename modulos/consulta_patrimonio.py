@@ -385,7 +385,14 @@ def render_patrimonio():
 
         if filtro:
             if coluna_pesquisa == "Plaqueta":
-                lista_plaquetas = [x.strip().zfill(6) for x in filtro.replace("\n", ",").split(",") if x.strip()]
+                # Leitores de código de barras podem enviar zeros à esquerda,
+                # além de espaços/quebras de linha. Normalize tudo antes da busca.
+                lista_plaquetas = []
+                for valor in filtro.replace("\n", ",").split(","):
+                    valor = "".join(ch for ch in valor.strip() if ch.isdigit())
+                    if valor:
+                        lista_plaquetas.append(str(int(valor)).zfill(6))
+
                 df_filtrado = df[df["Plaqueta"].isin(lista_plaquetas)]
             else:
                 df_filtrado = df[df[coluna_pesquisa].str.contains(filtro, case=False, na=False)]
@@ -402,6 +409,46 @@ def render_patrimonio():
                 float(historico_assistencias["valor_pago"].sum())
                 if not historico_assistencias.empty else 0.0
             )
+
+            # Situação atual do ativo, calculada a partir do cadastro e da última movimentação.
+            filial_atual = str(ativo.get("Filial", "")).strip()
+            portador_atual = str(ativo.get("Portador", "")).strip()
+            situacao_atual = "Disponível"
+            detalhe_situacao = "Cadastro ativo"
+
+            if historico_real:
+                ultima_movimentacao = historico_real[0]
+                ultimo_destino = str(ultima_movimentacao.get("destino", "")).strip()
+                ultima_data = str(ultima_movimentacao.get("data_saida", "")).strip()
+                ultimo_portador = str(ultima_movimentacao.get("portador", "")).strip()
+
+                if any(
+                    termo in ultimo_destino.upper()
+                    for termo in ["ASSISTENCIA", "CONSERTO", "MANUTENCAO", "REPARO"]
+                ):
+                    situacao_atual = "Em manutenção"
+                    detalhe_situacao = f"Último envio: {ultima_data}" if ultima_data else "Último envio registrado"
+                elif filial_atual and filial_atual not in {"1000", "1000.0"}:
+                    situacao_atual = f"Na filial {filial_atual}"
+                    detalhe_situacao = f"Portador: {ultimo_portador or portador_atual or 'Não informado'}"
+                else:
+                    situacao_atual = "No estoque TI"
+                    detalhe_situacao = f"Portador: {portador_atual or 'ESTOQUE TI'}"
+            elif filial_atual and filial_atual not in {"1000", "1000.0"}:
+                situacao_atual = f"Na filial {filial_atual}"
+                detalhe_situacao = f"Portador: {portador_atual or 'Não informado'}"
+            else:
+                situacao_atual = "No estoque TI"
+                detalhe_situacao = f"Portador: {portador_atual or 'ESTOQUE TI'}"
+
+            ultima_mov_texto = "Sem movimentações registradas"
+            if historico_real:
+                ultima_mov = historico_real[0]
+                ultima_mov_texto = (
+                    f"{ultima_mov.get('data_saida', 'Data não informada')} · "
+                    f"{ultima_mov.get('destino', 'Destino não informado')}"
+                )
+
             # Um envio para assistência já representa uma ocorrência de manutenção,
             # mesmo antes de o registro financeiro/conserto ser lançado.
             movimentos_assistencia = [
@@ -457,14 +504,24 @@ def render_patrimonio():
             st.markdown(f"""
                 <div class="metric-grid-container">
                     <div class="metric-card">
+                        <div class="metric-label">🟢 Situação atual</div>
+                        <div class="metric-value">{situacao_atual}</div>
+                        <div class="metric-sub">{detalhe_situacao}</div>
+                    </div>
+                    <div class="metric-card">
                         <div class="metric-label">👤 Portador</div>
-                        <div class="metric-value">{ativo.get("Portador", "N/A")}</div>
-                        <div class="metric-sub">Responsável Atual</div>
+                        <div class="metric-value">{portador_atual or "N/A"}</div>
+                        <div class="metric-sub">Responsável atual</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">🏢 Localização</div>
                         <div class="metric-value">{str(ativo.get("Desc. Local", "N/A"))[:22]}</div>
-                        <div class="metric-sub">Setor / Departamento</div>
+                        <div class="metric-sub">Filial {filial_atual or "não informada"}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">🕒 Última movimentação</div>
+                        <div class="metric-value">{ultima_mov_texto}</div>
+                        <div class="metric-sub">Movimentação mais recente registrada</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-label">📅 Aquisição</div>
@@ -472,7 +529,7 @@ def render_patrimonio():
                         <div class="metric-sub">NF: {ativo.get("Documento")}</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-label">⏳ Idade do Ativo</div>
+                        <div class="metric-label">⏳ Idade do ativo</div>
                         <div class="metric-value">{ativo.get("idade", 0)} anos</div>
                         <div class="metric-sub">Tempo desde a compra</div>
                     </div>
@@ -480,6 +537,38 @@ def render_patrimonio():
             """, unsafe_allow_html=True)
 
             st.write("")
+
+            # =========================================================
+            # ⚡ AÇÕES RÁPIDAS DO EQUIPAMENTO
+            # =========================================================
+            st.markdown("### ⚡ Próxima ação")
+            st.caption("O patrimônio já foi identificado. Escolha o próximo processo sem precisar voltar ao menu.")
+
+            acao_saida, acao_retorno, acao_assistencia, acao_historico = st.columns(4, gap="small")
+
+            with acao_saida:
+                if st.button("📤 Enviar", key="acao_ativo_saida", use_container_width=True):
+                    st.session_state["txt_patrimonio"] = str(plaqueta_atual)
+                    st.session_state["menu_atual"] = "➡️ Saída Equipamentos"
+                    st.rerun()
+
+            with acao_retorno:
+                if st.button("📥 Receber", key="acao_ativo_retorno", use_container_width=True):
+                    st.session_state["txt_patrimonio"] = str(plaqueta_atual)
+                    st.session_state["menu_atual"] = "↩️ Retorno Equipamentos"
+                    st.rerun()
+
+            with acao_assistencia:
+                if st.button("🔧 Assistência", key="acao_ativo_assistencia", use_container_width=True):
+                    st.session_state["assistencia_patrimonio"] = str(plaqueta_atual)
+                    st.session_state["menu_atual"] = "🛠️ Assistências"
+                    st.rerun()
+
+            with acao_historico:
+                if st.button("🕒 Histórico", key="acao_ativo_historico", use_container_width=True):
+                    st.session_state["historico_patrimonio_busca"] = str(plaqueta_atual)
+                    st.session_state["menu_atual"] = "🕒 Histórico Geral"
+                    st.rerun()
 
             st.markdown("### 🛠️ Histórico de Assistências")
             if qtd_assistencias:

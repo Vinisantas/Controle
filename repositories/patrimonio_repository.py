@@ -27,15 +27,24 @@ def buscar_patrimonio(patrimonio):
             if "Plaqueta" not in df.columns:
                 continue
 
+            # O cadastro pode armazenar a plaqueta como número (ex.: 81940.0),
+            # enquanto o leitor de código pode enviar zeros à esquerda (ex.: 081940).
+            # Normalizamos ambos para o mesmo número antes da comparação.
             df["Plaqueta_Normalizada"] = (
-                df["Plaqueta"]
+                pd.to_numeric(df["Plaqueta"], errors="coerce")
+                .fillna(0)
+                .astype("int64")
                 .astype(str)
-                .str.replace(".0", "", regex=False)
-                .str.strip()
             )
+            patrimonio_normalizado = str(patrimonio).strip()
+            patrimonio_normalizado = "".join(
+                ch for ch in patrimonio_normalizado if ch.isdigit()
+            )
+            if patrimonio_normalizado:
+                patrimonio_normalizado = str(int(patrimonio_normalizado))
 
             resultado = df[
-                df["Plaqueta_Normalizada"] == str(patrimonio).strip()
+                df["Plaqueta_Normalizada"] == patrimonio_normalizado
             ]
 
             if not resultado.empty:

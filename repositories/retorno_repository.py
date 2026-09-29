@@ -60,10 +60,20 @@ def buscar_dados_patrimonio(codigo, db_cadastro=DB_CADASTRO):
             desc_sql = descricao.replace('"', '""')
             loja = next((mapa[k] for k in ("loja", "filial", "unidade") if k in mapa), None)
             loja_sql = f', "{loja.replace(chr(34), chr(34)*2)}"' if loja else ""
+            # O cadastro pode guardar a plaqueta como número (ex.: 81849.0),
+            # enquanto o leitor pode enviar zeros à esquerda (ex.: 081849).
+            # Compare os dois lados como número para aceitar ambos os formatos.
+            codigo_normalizado = "".join(
+                ch for ch in str(codigo).strip() if ch.isdigit()
+            )
+            if not codigo_normalizado:
+                continue
+            codigo_normalizado = str(int(codigo_normalizado))
+
             row = conn.execute(
                 f'SELECT "{desc_sql}"{loja_sql} FROM "{nome_seguro}" '
-                f'WHERE TRIM(REPLACE(CAST("{chave_sql}" AS TEXT), ".0", "")) = ? LIMIT 1',
-                (str(codigo).strip(),),
+                f'WHERE CAST(CAST("{chave_sql}" AS REAL) AS INTEGER) = ? LIMIT 1',
+                (codigo_normalizado,),
             ).fetchone()
             if row:
                 valor_loja = row[1] if len(row) > 1 else ""

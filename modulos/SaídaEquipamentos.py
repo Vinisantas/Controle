@@ -3,6 +3,7 @@ from services import exportacao_service, saida_service
 import streamlit as st
 import pandas as pd
 import sqlite3
+from datetime import date
 
 
 def configurar_tela():
@@ -36,6 +37,23 @@ def configurar_tela():
         }
         </style>
     """, unsafe_allow_html=True)
+
+
+def buscar_contexto_patrimonio(patrimonio):
+    """Retorna localização atual para orientar a saída sem exigir digitação extra."""
+    try:
+        with sqlite3.connect("Banco Dados/cadastro_patrimonio.sqlite") as conn:
+            numero = "".join(ch for ch in str(patrimonio).strip() if ch.isdigit())
+            if not numero:
+                return None
+            return conn.execute(
+                """SELECT Filial, Portador, [Desc. Local]
+                   FROM cadastro_patrimonio
+                   WHERE CAST(Plaqueta AS INTEGER) = ? LIMIT 1""",
+                (int(numero),),
+            ).fetchone()
+    except Exception:
+        return None
 
 
 def render_saidas():
@@ -77,7 +95,7 @@ def render_formulario_saida():
     # FORMULÁRIO DE REGISTRO DE SAÍDA
     # =========================================================
 
-    margin_left, center_body, margin_right = st.columns([0.5, 4, 0.5])
+    center_body = st.container()
 
     with center_body:
 
@@ -86,8 +104,12 @@ def render_formulario_saida():
             unsafe_allow_html=True
         )
 
-        st.subheader("🆕 Registrar Saída")
-        st.write("")
+        st.markdown(
+            '<div class="vs-form-kicker">MOVIMENTAÇÃO DE ATIVO</div>'
+            '<div class="vs-form-heading">Registrar saída</div>'
+            '<div class="vs-form-help">Saída para uso na loja não gera retorno. Retorno fica reservado para empréstimos ou equipamentos vinculados a chamados Movidesk.</div>',
+            unsafe_allow_html=True,
+        )
 
         # =====================================================
         # LINHA 1 — PATRIMÔNIO / DESCRIÇÃO / QUANTIDADE
@@ -119,6 +141,13 @@ def render_formulario_saida():
                 Patrimonio = Patrimonio_Input.strip()
                 Desabilitar_Campos = True
                 Descricao = patrimonio_repository.buscar_patrimonio(Patrimonio)
+                contexto = buscar_contexto_patrimonio(Patrimonio)
+                if contexto:
+                    filial_atual, portador_atual, local_atual = contexto
+                    st.caption(
+                        f"📍 Atual: filial {filial_atual or '—'} · "
+                        f"{portador_atual or local_atual or 'local não informado'}"
+                    )
 
         with c_form_desc:
 
@@ -258,10 +287,8 @@ def render_formulario_saida():
 
         with c_op3:
 
-            Data = st.date_input(
-                "Data de Saída 📅",
-                format="DD/MM/YYYY"
-            )
+            Data = date.today()
+            st.caption(f"📅 Data automática: {Data.strftime('%d/%m/%Y')}")
 
         # =====================================================
         # OBSERVAÇÕES

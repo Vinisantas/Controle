@@ -12,6 +12,7 @@ from modulos.importacao_senior import render_importacao_senior
 from dashboards.estoque import render_estoque
 from dashboards.suporte import render_sup
 from dashboards.central import render_central_dashboards
+from modulos.painel_operacao import render_painel_operacao
 
 
 def _renderizar_baixados():
@@ -76,6 +77,7 @@ def _renderizar_visao_geral():
 def renderizar_pagina(opcao):
     """Renderiza a página selecionada no menu principal."""
     paginas = {
+        "⚡ Painel de Operação": render_painel_operacao,
         "➡️ Saída Equipamentos": render_saidas,
         "↩️ Retorno Equipamentos": render_retornos,
         "🕒 Histórico Geral": render_historico,

@@ -209,8 +209,15 @@ def render_historico():
     with col_busca:
         plaqueta_busca = st.text_input(
             "Digite o Número do Patrimônio / Plaqueta para Rastreamento 🏷️", 
-            placeholder="Ex: 81940"
+            placeholder="Ex: 81940",
+            key="historico_patrimonio_busca"
         ).strip()
+
+        # Aceita também a leitura do código de barras com zeros à esquerda.
+        if plaqueta_busca:
+            plaqueta_busca = "".join(ch for ch in plaqueta_busca if ch.isdigit())
+            if plaqueta_busca:
+                plaqueta_busca = str(int(plaqueta_busca)).lstrip("0") or "0"
 
     if plaqueta_busca:
         dados_ativo, tabela_origem = buscar_dados_cadastro(plaqueta_busca)

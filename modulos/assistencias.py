@@ -4,6 +4,7 @@ import streamlit as st
 from services.assistencia_service import calcular_indicadores
 
 from repositories.assistencia_repository import inicializar_banco, carregar_assistencias, registrar_assistencia, atualizar_assistencia, excluir_assistencia, buscar_historico_patrimonio
+from repositories import patrimonio_repository
 from services.assistencia_service import calcular_indicadores
 
 
@@ -19,6 +20,32 @@ def render_assistencias():
             border-radius: 10px;
             padding: 14px 16px;
             margin-bottom: 12px;
+        }
+        /* O formulário de assistência usa a mesma linguagem do Retorno/Saída. */
+        div[data-testid="stForm"] {
+            background: linear-gradient(145deg, rgba(10,23,30,.98), rgba(5,14,19,.98)) !important;
+            border: 1px solid #243842 !important;
+            border-radius: 14px !important;
+            padding: 24px 26px 22px !important;
+            box-shadow: 0 18px 45px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.025) !important;
+        }
+        div[data-testid="stForm"] label p {
+            color: #BFC9CE !important;
+            font-size: 12px !important;
+            font-weight: 650 !important;
+        }
+        div[data-testid="stForm"] input,
+        div[data-testid="stForm"] textarea,
+        div[data-testid="stForm"] [data-baseweb="select"] > div {
+            background: #08171E !important;
+            border: 1px solid #2B414A !important;
+            border-radius: 9px !important;
+            color: #F7F9FA !important;
+        }
+        div[data-testid="stForm"] input:focus,
+        div[data-testid="stForm"] textarea:focus {
+            border-color: #C92F37 !important;
+            box-shadow: 0 0 0 2px rgba(201,47,55,.14) !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -36,13 +63,39 @@ def render_assistencias():
     col3.metric("Gasto neste mês", f"R$ {indicadores['gasto_mes']:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     col4.metric("Em assistência", indicadores["abertas"])
 
-    st.markdown("### ➕ Registrar conserto")
-    with st.expander("Nova assistência", expanded=True):
+    st.markdown(
+        '<div class="vs-form-kicker">CONTROLE DE MANUTENÇÃO</div>'
+        '<div class="vs-form-heading">Registrar assistência</div>'
+        '<div class="vs-form-help">Registre entrada, fornecedor, defeito, serviço e custo do equipamento em um único fluxo.</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown("**1 · Identifique o equipamento**")
+    patrimonio = st.text_input(
+        "Patrimônio *",
+        placeholder="Digite a plaqueta e o sistema preenche os dados automaticamente",
+        key="assistencia_patrimonio",
+    ).strip()
+
+    descricao_auto = ""
+    if patrimonio:
+        try:
+            descricao_auto = patrimonio_repository.buscar_patrimonio(patrimonio) or ""
+            if descricao_auto:
+                st.caption(f"✓ Equipamento localizado: **{descricao_auto}**")
+            else:
+                st.warning("Patrimônio não localizado no cadastro.")
+        except Exception:
+            descricao_auto = ""
+
+    with st.container():
         with st.form("formulario_assistencia"):
-            c1, c2, c3 = st.columns(3)
-            patrimonio = c1.text_input("Patrimônio *")
-            descricao = c2.text_input("Descrição")
-            fornecedor = c3.text_input("Assistência / Fornecedor")
+            c1, c2 = st.columns(2)
+            descricao = c1.text_input(
+                "Descrição",
+                value=descricao_auto,
+                disabled=bool(descricao_auto),
+            )
+            fornecedor = c2.text_input("Assistência / Fornecedor")
 
             c4, c5, c6 = st.columns(3)
             chamado = c4.text_input("Chamado")

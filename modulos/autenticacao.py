@@ -11,6 +11,7 @@ def realizar_login(usuario, senha):
 
     if usuario_correto and senha_correta and usuario == usuario_correto and senha == senha_correta:
         st.session_state.autenticado = True
+        st.session_state["usuario_logado"] = usuario.strip()
         st.success("Login realizado com sucesso!")
         st.rerun()
     else:

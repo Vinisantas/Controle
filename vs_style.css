@@ -300,3 +300,193 @@ div[data-testid="stMetricValue"] {
 div[data-testid="stMetricDelta"] {
   color: #C3CDD1 !important;
 }
+
+/* =========================================================
+   VS. PONTO 0 — NOVA LINGUAGEM VISUAL PARA FORMULÁRIOS E TABELAS
+   ========================================================= */
+.vs-form-kicker {
+  margin-top: 2px;
+  color: #D65A61;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+}
+.vs-form-heading {
+  margin-top: 3px;
+  color: #FFFFFF;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -.7px;
+}
+.vs-form-help {
+  margin: 3px 0 18px;
+  color: #87979E;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.custom-form-container {
+  background: linear-gradient(145deg, rgba(10,23,30,.98), rgba(5,14,19,.98)) !important;
+  border: 1px solid #243842 !important;
+  border-radius: 14px !important;
+  padding: 24px 26px 22px !important;
+  box-shadow: 0 18px 45px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.025) !important;
+}
+
+.custom-form-container h2,
+.custom-form-container h3 {
+  color: #FFFFFF !important;
+  letter-spacing: -.6px !important;
+}
+
+.custom-form-container label p {
+  color: #BFC9CE !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  letter-spacing: .02em !important;
+  text-transform: none !important;
+  margin-bottom: 6px !important;
+}
+
+.custom-form-container .stTextInput,
+.custom-form-container .stSelectbox,
+.custom-form-container .stNumberInput,
+.custom-form-container .stDateInput,
+.custom-form-container .stTextArea {
+  margin-bottom: 7px !important;
+}
+
+.custom-form-container input,
+.custom-form-container textarea,
+.custom-form-container [data-baseweb="select"] > div {
+  background: #08171E !important;
+  border: 1px solid #2B414A !important;
+  border-radius: 9px !important;
+  color: #F7F9FA !important;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease !important;
+}
+
+.custom-form-container input:hover,
+.custom-form-container textarea:hover,
+.custom-form-container [data-baseweb="select"] > div:hover {
+  background: #0A1B23 !important;
+  border-color: #405761 !important;
+}
+
+.custom-form-container input:focus,
+.custom-form-container textarea:focus {
+  border-color: #C92F37 !important;
+  box-shadow: 0 0 0 2px rgba(201,47,55,.14) !important;
+}
+
+.custom-form-container .stCheckbox label {
+  background: rgba(255,255,255,.025) !important;
+  border: 1px solid #263B44 !important;
+  border-radius: 8px !important;
+  padding: 8px 10px !important;
+}
+
+.custom-form-container hr {
+  border-color: #23363E !important;
+  margin: 16px 0 !important;
+}
+
+.custom-form-container .stButton > button {
+  min-height: 44px !important;
+  border-radius: 9px !important;
+  font-weight: 750 !important;
+  letter-spacing: .01em !important;
+}
+
+/* Área externa das tabelas */
+[data-testid="stDataFrame"],
+[data-testid="stDataEditor"] {
+  border: 1px solid #263A43 !important;
+  border-radius: 12px !important;
+  background: #07151B !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.18) !important;
+  overflow: hidden !important;
+}
+
+/* Streamlit cria uma área própria para o grid; este acabamento evita
+   a sensação de "planilha crua" mesmo quando o grid interno é isolado. */
+[data-testid="stDataFrame"] > div,
+[data-testid="stDataEditor"] > div {
+  background: #07151B !important;
+}
+
+/* Controles logo acima de tabelas */
+[data-testid="stDataFrame"] + div,
+[data-testid="stDataEditor"] + div {
+  color: #9EABB1 !important;
+}
+
+/* Cabeçalhos/seções usados antes de tabelas */
+.vs-table-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 22px 0 9px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid #22353D;
+}
+
+.vs-table-title strong {
+  color: #F5F7F8;
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.vs-table-title span {
+  color: #89979E;
+  font-size: 12px;
+}
+
+/* Filtros com aparência de barra de pesquisa */
+.vs-filter-bar {
+  background: rgba(255,255,255,.018);
+  border: 1px solid #1F333B;
+  border-radius: 11px;
+  padding: 12px 14px 4px;
+  margin: 8px 0 14px;
+}
+
+/* Tabelas HTML internas do projeto */
+.vs-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid #263A43;
+  border-radius: 11px;
+  background: #08171E;
+  color: #E9EEF0;
+}
+
+.vs-table th {
+  background: #0D2028;
+  color: #AEBBC1;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  padding: 11px 13px;
+  border-bottom: 1px solid #263A43;
+  text-align: left;
+}
+
+.vs-table td {
+  padding: 11px 13px;
+  border-bottom: 1px solid #182B33;
+  color: #DCE3E6;
+  font-size: 13px;
+}
+
+.vs-table tr:last-child td { border-bottom: 0; }
+.vs-table tr:hover td { background: rgba(255,255,255,.025); }
+
+/* Menos "planilha", mais produto: textos auxiliares */
+[data-testid="stDataFrame"] [data-testid="stCaptionContainer"],
+[data-testid="stDataEditor"] [data-testid="stCaptionContainer"] {
+  color: #7F8D94 !important;
+}
