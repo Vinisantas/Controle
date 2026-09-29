@@ -1,29 +1,29 @@
-import sqlite3
 import streamlit as st
 import pandas as pd
-import os
 import io
 import streamlit.components.v1 as components
+from services import retorno_service
+from repositories import retorno_repository
 
 def render_retornos():
     # Customização CSS para o formulário grafite premium e textos claros
     st.markdown("""
         <style>
         .block-container { padding-top: 1.5rem; padding-bottom: 2rem; }
-        h1 { font-weight: 800; letter-spacing: -0.05em; color: #0F172A; }
-        h3 { font-weight: 600; letter-spacing: -0.03em; color: #1E293B; }
+        h1 { font-weight: 800; letter-spacing: -0.05em; color: #FFFFFF !important; }
+        h3 { font-weight: 600; letter-spacing: -0.03em; color: #FFFFFF !important; }
         
         /* Container do Formulário Grafite com bordas arredondadas e suavizadas */
         .custom-form-container { 
-            background-color: #1E293B !important; 
+            background-color: #06151C !important;
             border-radius: 12px !important; 
             border: none !important;
             padding: 25px !important;
-            color: #F8FAFC !important;
+            color: #F1F3F5 !important;
         }
         /* Estilização dos rótulos dos campos dentro do container escuro */
         .custom-form-container label p {
-            color: #F8FAFC !important;
+            color: #F1F3F5 !important;
             font-weight: 500 !important;
         }
         /* Estilização dos títulos internos */
@@ -32,121 +32,8 @@ def render_retornos():
         }
         </style>
     """, unsafe_allow_html=True)
-    # Garante que a pasta existe
-    if not os.path.exists("Banco Dados"):
-        os.makedirs("Banco Dados")
-
     DB_NAME = "Banco Dados/retorno.sqlite"
     BUSCA_PLAQUETA = "Banco Dados/cadastro_patrimonio.sqlite"
-
-    def inicializar_banco():
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS retorno (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                Patrimonio TEXT,
-                Descricao TEXT,
-                Loja TEXT,
-                Chamado TEXT,
-                Notafiscal TEXT,
-                Data DATE
-            )
-        ''')
-        conn.commit()
-        conn.close()
-
-    # FUNÇÃO ADICIONADA: Busca descrição no banco de cadastros por plaqueta/patrimônio
-    def buscar_descricao_por_patrimonio(codigo):
-        if not os.path.exists(BUSCA_PLAQUETA):
-            return ""
-        try:
-            conn = sqlite3.connect(BUSCA_PLAQUETA)
-            cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-            tabelas = cursor.fetchall()
-            if not tabelas:
-                conn.close()
-                return ""
-                
-            tabela_nome = tabelas[0][0] # Pega a primeira tabela existente
-            
-            # Busca dinâmica que tenta mapear pela plaqueta digitada (case-insensitive)
-            query = f"SELECT * FROM {tabela_nome} LIMIT 1"
-            df_temp = pd.read_sql_query(query, conn)
-            colunas = [c.lower() for c in df_temp.columns]
-            
-            col_chave = 'Plaqueta' if 'Plaqueta' in colunas else ('patrimonio' if 'patrimonio' in colunas else df_temp.columns[0])
-            col_valor = 'descricao' if 'descricao' in colunas else ('nome' if 'nome' in colunas else df_temp.columns[1])
-
-            cursor.execute(f"SELECT {col_valor} FROM {tabela_nome} WHERE UPPER({col_chave}) = ?", (codigo.upper(),))
-            resultado = cursor.fetchone()
-            conn.close()
-            
-            if resultado:
-                return resultado[0]
-        except Exception as e:
-            st.error(f"Erro ao acessar banco de plaquetas: {e}")
-        return ""
-
-    def salvar_no_banco(Patrimonio, Descricao, Loja, Chamado, Notafiscal, Data):
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO retorno (Patrimonio, Descricao, Loja, Chamado, Notafiscal, Data)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (Patrimonio, Descricao, Loja, Chamado, Notafiscal, Data.isoformat()))
-        conn.commit()
-        conn.close()
-
-                # 2. ATUALIZA PORTADOR E LOCAL NO CADASTRO DE PATRIMÔNIO (Se houver patrimônio válido)
-        if Patrimonio and Patrimonio != "SEM PATRIMÔNIO":
-            if os.path.exists(BUSCA_PLAQUETA):
-                try:
-                    conn_pat = sqlite3.connect(BUSCA_PLAQUETA)
-                    cursor_pat = conn_pat.cursor()
-                    
-                    # Encontra o nome exato da tabela no banco de patrimônios
-                    cursor_pat.execute("SELECT name FROM sqlite_master WHERE type='table';")
-                    tabelas = cursor_pat.fetchall()
-                    
-                    for tabela in tabelas:
-                        nome_tabela = tabela[0]
-                        # Atualiza os dados de Portador e Local com base na Plaqueta
-                        cursor_pat.execute(f"""
-                            UPDATE [{nome_tabela}]
-                            SET Portador = "ESTOQUE TI", "Filial" = "1000"
-                            WHERE RTRIM(LTRIM(REPLACE(Plaqueta, '.0', ''))) = ?
-                        """, (Patrimonio,))
-                        
-                    conn_pat.commit()
-                    conn_pat.close()
-                    # Limpa o cache para atualizar a busca do patrimônio em tempo real!
-                    st.cache_data.clear()
-                except Exception as e:
-                    st.error(f"⚠️ Erro ao atualizar o Portador no cadastro de patrimônio: {e}")
-
-
-
-    def atualizar_linha_banco(id_registro, coluna, novo_valor):
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute(f'UPDATE retorno SET {coluna} = ? WHERE id = ?', (novo_valor, id_registro))
-        conn.commit()
-        conn.close()
-
-    def excluir_do_banco(id_registro):
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM retorno WHERE id = ?', (id_registro,))
-        conn.commit()
-        conn.close()
-
-    def carregar_dados():
-        conn = sqlite3.connect(DB_NAME)
-        df = pd.read_sql_query("SELECT * FROM retorno ORDER BY Data DESC", conn, parse_dates=["Data"])
-        conn.close()
-        return df
 
     def converter_para_excel(df):
         output = io.BytesIO()
@@ -160,8 +47,8 @@ def render_retornos():
             df_excel.to_excel(writer, index=False, sheet_name='Retornos')
         return output.getvalue()
 
-    # Inicializa banco de dados
-    inicializar_banco()
+    # Inicializa e consulta o banco pela camada de repositório
+    retorno_repository.inicializar_banco()
 
     # 2. CABEÇALHO PRINCIPAL DA APLICAÇÃO
     st.title(" Retorno de Equipamentos")
@@ -169,12 +56,12 @@ def render_retornos():
     st.divider()
 
     # Carrega os dados para o painel
-    df_banco = carregar_dados()
+    df_banco = retorno_repository.carregar_dados()
 
     # 3. DISPOSIÇÃO DO LAYOUT PRINCIPAL
-    col_form, col_tabela = st.columns([1, 2.5], gap="large")
+    _, center_body, _ = st.columns([0.5, 4, 0.5], gap="large")
 
-    with col_form:
+    with center_body:
         # Mantém o design escuro customizado
         st.markdown('<div class="custom-form-container">', unsafe_allow_html=True)
         st.subheader("🆕 Registrar Entrada")
@@ -200,56 +87,16 @@ def render_retornos():
             Desabilitar_Campos = True  # Bloqueia a descrição por segurança para ativos oficiais
             
             if Patrimonio:
-                if os.path.exists(BUSCA_PLAQUETA):
-                    try:
-                        conn = sqlite3.connect(BUSCA_PLAQUETA)
-                        cursor = conn.cursor()
-                        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-                        tabelas = [t for t in cursor.fetchall()]
-                        
-                        achou = False
-                        for tabela in tabelas:
-                            nome_real_tabela = tabela[0]
-                            df_cadastro = pd.read_sql_query(f"SELECT * FROM [{nome_real_tabela}]", conn)
-                            df_cadastro.columns = [c.strip() for c in df_cadastro.columns]
-                            
-                            if "Plaqueta" in df_cadastro.columns and "Desc. Bem" in df_cadastro.columns:
-                                # Tratamento para floats e strings do banco de dados de patrimônios
-                                df_cadastro['Plaqueta_Limpa'] = df_cadastro['Plaqueta'].astype(str).str.replace(r'\.0$', '', regex=True).str.strip()
-                                resultado = df_cadastro[df_cadastro['Plaqueta_Limpa'] == Patrimonio]
-                                
-                                if not resultado.empty:
-                                    Descricao = str(resultado['Desc. Bem'].iloc[0]).strip()
-                                    
-                                    # --- CORREÇÃO DO FORMATO INTEIRO (REMOÇÃO DO .0) ---
-                                    # Se o usuário digitou um número puro, força o patrimônio final a salvar como inteiro limpo
-                                    if Patrimonio.isdigit():
-                                        Patrimonio = str(int(float(Patrimonio)))
-                                    
-                                    # Tenta buscar a coluna 'Loja' ou 'Filial' se ela existir no seu banco de cadastros
-                                    col_loja_banco = next((c for c in df_cadastro.columns if c.lower() in ['loja', 'filial', 'unidade']), None)
-                                    if col_loja_banco:
-                                        valor_loja_bruto = resultado[col_loja_banco].iloc[0]
-                                        
-                                        # Se a loja também vier com .0 por erro de importação, limpa ela aqui
-                                        if pd.api.types.is_number(valor_loja_bruto) or str(valor_loja_bruto).endswith('.0'):
-                                            Loja_Sugerida = str(int(float(valor_loja_bruto))).strip()
-                                        else:
-                                            Loja_Sugerida = str(valor_loja_bruto).strip()
-                                    
-                                    achou = True
-                                    break
-                        conn.close()
-                        
-                        if not achou:
-                            st.error(f"❌ Plaqueta '{Patrimonio}' não localizada no cadastro.")
-                            Descricao = ""
-                            Loja_Sugerida = ""
-                        else:
-                            st.toast("🔍 Dados do ativo carregados!", icon="✅")
-                            
-                    except Exception as e:
-                        st.error(f"Erro ao processar busca: {e}")
+                try:
+                    dados_patrimonio = retorno_repository.buscar_dados_patrimonio(Patrimonio)
+                    if not dados_patrimonio:
+                        st.error(f"❌ Plaqueta '{Patrimonio}' não localizada no cadastro.")
+                    else:
+                        Descricao = dados_patrimonio["descricao"]
+                        Loja_Sugerida = dados_patrimonio["loja"]
+                        st.toast("🔍 Dados do ativo carregados!", icon="✅")
+                except sqlite3.Error as e:
+                    st.error(f"Erro ao processar busca no cadastro: {e}")
 
         # 3. FLUXO SEM PATRIMÔNIO: Libera tudo para o usuário escrever o que quiser
         else:
@@ -295,11 +142,16 @@ def render_retornos():
                 st.error("Por favor, informe ou confirme a Loja de Origem.")
             else:
                 # Grava no banco com o patrimônio convertido em texto de número inteiro puro
-                salvar_no_banco(Patrimonio, Descricao_Final, Loja_Final, Chamado, Notafiscal, Data)
-                st.success("Equipamento registrado com sucesso!")
-                st.rerun()
+                try:
+                    retorno_service.registrar_retorno(Patrimonio, Descricao_Final, Loja_Final, Chamado, Notafiscal, Data, db_retorno=DB_NAME, db_cadastro=BUSCA_PLAQUETA)
+                    st.cache_data.clear()
+                except Exception as e:
+                    st.error(str(e))
+                else:
+                    st.success("Equipamento registrado com sucesso!")
+                    st.rerun()
 
-    with col_tabela:
+    with center_body:
         col_titulo_tab, col_busca, col_btn_exportar = st.columns([1.5, 1.5, 1])
         
         with col_titulo_tab:
@@ -330,14 +182,15 @@ def render_retornos():
                     use_container_width=True
                 )
                 
-            st.caption("✨ *Tabela interativa: Dê duplo clique em qualquer célula para corrigir valores diretamente.*")
+            st.caption("🔒 Histórico somente para consulta. Para corrigir uma movimentação, registre uma movimentação compensatória para preservar a rastreabilidade.")
             
-            df_editado = st.data_editor(
+            st.data_editor(
                 df_banco,
-                key="editor_retornos",
+                key="editor_retornos_v2",
                 hide_index=True,
                 use_container_width=True,
-                num_rows="dynamic",
+                num_rows="fixed",
+                disabled=list(df_banco.columns),
                 height=480, 
                 column_config={
                     "id": None, 
@@ -350,25 +203,6 @@ def render_retornos():
                 }
             )
             
-            if "editor_retornos" in st.session_state:
-                mudancas = st.session_state["editor_retornos"]
-                
-                if mudancas["edited_rows"]:
-                    for index_linha, colunas_alteradas in mudancas["edited_rows"].items():
-                        id_registro = int(df_banco.iloc[index_linha]["id"])
-                        for nome_coluna, novo_valor in colunas_alteradas.items():
-                            if nome_coluna == "Data":
-                                novo_valor = pd.to_datetime(novo_valor).date().isoformat()
-                            atualizar_linha_banco(id_registro, nome_coluna, novo_valor)
-                    st.toast("Alteração salva com sucesso!", icon="💾")
-                    st.rerun()
-                    
-                if mudancas["deleted_rows"]:
-                    for index_linha in mudancas["deleted_rows"]:
-                        id_registro = int(df_banco.iloc[index_linha]["id"])
-                        excluir_do_banco(id_registro)
-                    st.toast("Registro removido permanentemente.", icon="🗑️")
-                    st.rerun()
         else:
             st.info("Nenhum registro correspondente encontrado para exibição.")
             # COLE ISSO NA ÚLTIMA LINHA DO SEU ARQUIVO DO FORMULÁRIO (NÃO ALTERA NADA DO SEU CÓDIGO)
@@ -376,7 +210,7 @@ def render_retornos():
                 """
             <link rel="stylesheet" href="https://jsdelivr.net">
             <style>
-            .simple-keyboard { position: fixed; bottom: 10px; left: 5%; width: 90%; max-width: 1000px; z-index: 99999; background: #eceff1; box-shadow: 0px 4px 15px rgba(0,0,0,0.3); }
+            .simple-keyboard { position: fixed; bottom: 10px; left: 5%; width: 90%; max-width: 1000px; z-index: 99999; background: #E7EAED; box-shadow: 0px 4px 15px rgba(0,0,0,0.3); }
             .hg-button { height: 50px !important; font-size: 18px !important; }
             </style>
             <div class="simple-keyboard"></div>

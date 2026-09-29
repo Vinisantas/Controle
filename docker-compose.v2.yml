@@ -1,0 +1,41 @@
+services:
+  gestao:
+    build:
+      context: .
+      dockerfile: dockerfile
+    image: controle-ativos-ti:v2-candidato
+    ports:
+      - "8503:8503"
+    env_file:
+      - .env
+    environment:
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - "./Banco Dados:/app/Banco Dados"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8503/_stcore/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  dashboards:
+    build:
+      context: .
+      dockerfile: dockerfile
+    image: controle-ativos-ti:v2-candidato
+    command: ["streamlit", "run", "dashboards_app.py", "--server.port", "8502", "--server.address", "0.0.0.0", "--server.headless", "true"]
+    ports:
+      - "8502:8502"
+    env_file:
+      - .env
+    environment:
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./cache_backup:/app/cache_backup
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8502/_stcore/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

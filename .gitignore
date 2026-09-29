@@ -1,25 +1,34 @@
-# Ignorar arquivos .env
+# Ambiente local e credenciais
 .env
-
-# Ignorar a pasta venv (ambientes virtuais)
+.env.*
+!.env.example
 venv/
+.venv/
+.vscode/
 
-# Ignorar arquivos temporários
+# Python / temporários
+__pycache__/
+*.py[cod]
 *.tmp
 *.log
 
+# Dados operacionais — NÃO versionar
+Banco Dados/
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+cache_backup/
+backups/
 
-# Ignorar arquivos de cache do Python
-__pycache__/
-
-# Ignorar arquivos de atualizações
+# Arquivos locais / restauração
+*.brand.bak
+*.bak
 updates/
-
-# Ignorar arquivos de teste
 teste.py
 
-
-
-# Ignorar arquivos de configuração do VS Code
-.vscode/
-
+# Build / ferramentas locais
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/

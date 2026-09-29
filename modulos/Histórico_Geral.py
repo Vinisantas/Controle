@@ -9,7 +9,7 @@ def render_historico():
     st.markdown("""
         <style>
         .block-container { padding-top: 1.5rem; padding-bottom: 2rem; }
-        h1 { font-weight: 800; letter-spacing: -0.05em; color: #0F172A; }
+        h1 { font-weight: 800; letter-spacing: -0.05em; color: #00080D; }
         
         /* Box de Alerta da Base */
         .status-box {
@@ -20,18 +20,18 @@ def render_historico():
             margin-bottom: 25px;
         }
         .auto-updated {
-            background: linear-gradient(135deg, #059669 0%, #047857 100%);
-            border: 1px solid #34D399;
+            background: linear-gradient(135deg, #C91F2A 0%, #A81720 100%);
+            border: 1px solid #FF5A62;
         }
         .conforme {
-            background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
-            border: 1px solid #334155;
+            background: linear-gradient(135deg, #06151C 0%, #00080D 100%);
+            border: 1px solid #18272E;
         }
         
         /* Card do Paradeiro Atual do Equipamento */
         .paradeiro-card {
-            background-color: #1E293B;
-            border: 1px solid #475569;
+            background-color: #06151C;
+            border: 1px solid #52616A;
             border-radius: 12px;
             padding: 20px;
             text-align: center;
@@ -41,9 +41,9 @@ def render_historico():
         
         /* Novo Card do Histórico de Passagem */
         .card-passagem {
-            background-color: #1E293B;
+            background-color: #06151C;
             border-radius: 10px;
-            border: 1px solid #334155;
+            border: 1px solid #18272E;
             padding: 18px;
             margin-bottom: 15px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
@@ -57,8 +57,8 @@ def render_historico():
             display: inline-block;
             margin-bottom: 10px;
         }
-        .badge-entrada { background-color: #065F46; color: #34D399; }
-        .badge-saida { background-color: #7F1D1D; color: #F87171; }
+        .badge-entrada { background-color: #A81720; color: #FF5A62; }
+        .badge-saida { background-color: #8F1820; color: #FF5A62; }
         
         .grid-passagem {
             display: grid;
@@ -68,14 +68,14 @@ def render_historico():
             font-size: 0.9rem;
         }
         .info-block {
-            background-color: #0F172A;
+            background-color: #00080D;
             padding: 10px;
             border-radius: 6px;
-            border: 1px solid #1E293B;
+            border: 1px solid #06151C;
         }
         .info-label {
             font-size: 0.75rem;
-            color: #94A3B8;
+            color: #AAB7BE;
             text-transform: uppercase;
             font-weight: bold;
             display: block;
@@ -273,15 +273,15 @@ def render_historico():
             # 1. CARD DE LOCALIZAÇÃO ATUAL
             st.subheader("📍 Localização Física Atual do Equipamento")
             
-            cor_destaque = "#10B981" if filial_contabil == 1000 else "#6366F1"
+            cor_destaque = "#F62B33" if filial_contabil == 1000 else "#F62B33"
             tipo_local_rotulo = "Estoque Central de TI" if filial_contabil == 1000 else f"Operando na Loja"
             
             st.markdown(f"""
                 <div class="paradeiro-card" style="border-top: 5px solid {cor_destaque};">
-                    <span style="color: #94A3B8; font-size: 0.85rem; font-weight: bold; text-transform: uppercase;">Paradeiro Confirmado</span>
+                    <span style="color: #AAB7BE; font-size: 0.85rem; font-weight: bold; text-transform: uppercase;">Paradeiro Confirmado</span>
                     <h2 style="color: {cor_destaque}; font-weight: 800; margin: 10px 0;">FILIAL {filial_contabil}</h2>
-                    <p style="font-size: 1.1rem; margin: 5px 0; color: #F8FAFC;"><b>Setor/Descrição:</b> {local_contabil}</p>
-                    <span style="background-color: #334155; color: #F1F5F9; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold;">
+                    <p style="font-size: 1.1rem; margin: 5px 0; color: #F1F3F5;"><b>Setor/Descrição:</b> {local_contabil}</p>
+                    <span style="background-color: #18272E; color: #F1F3F5; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold;">
                         {tipo_local_rotulo}
                     </span>
                 </div>
@@ -295,7 +295,7 @@ def render_historico():
                 st.subheader("📋 Ficha do Ativo imobilizado")
                 with st.container(border=True):
                     st.write(f"**Descrição do Bem:**")
-                    st.markdown(f"<p style='color: #94A3B8; font-size: 0.95rem; line-height: 1.4;'>{dados_ativo.get('Desc. Bem', 'N/A')}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='color: #AAB7BE; font-size: 0.95rem; line-height: 1.4;'>{dados_ativo.get('Desc. Bem', 'N/A')}</p>", unsafe_allow_html=True)
                     st.divider()
                     st.write(f"**Data da Última Sincronização:** {dados_ativo.get('Data últ. Loc', 'N/A')}")
                     st.write(f"**Fornecedor:** {dados_ativo.get('Fornecedor', 'N/A')}")
@@ -332,7 +332,7 @@ def render_historico():
                             with col_status:
                                 st.markdown(f":{status_cor}[**{titulo_operacao}**]")
                             with col_data:
-                                st.markdown(f"<p style='text-align: right; color: #94A3B8; font-size: 0.85rem;'>📅 {data_formatada}</p>", unsafe_allow_html=True)
+                                st.markdown(f"<p style='text-align: right; color: #AAB7BE; font-size: 0.85rem;'>📅 {data_formatada}</p>", unsafe_allow_html=True)
                             
                             # Fluxo Físico em destaque
                             st.markdown(f"### {fluxo_origem_destino}")

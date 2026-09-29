@@ -4,6 +4,8 @@ import os
 from datetime import datetime
 import streamlit as st
 
+from modulos.assistencias import buscar_historico_patrimonio
+
 # ====================================================
 # 💾 CARREGAMENTO DE DADOS (Com tratamentos aplicados)
 # ====================================================
@@ -87,19 +89,26 @@ def carregar_dataFrameBaixas():
 # 🕒 FUNÇÃO DE HISTÓRICO REAL
 # ====================================================
 def buscar_historico_saidas(plaqueta):
-    caminho_db = 'Banco Dados/saidas.sqlite'
+    """Busca as movimentações no banco atual de saídas."""
+    caminho_db = 'Banco Dados/saida.sqlite'
     if not os.path.exists(caminho_db):
         return []
     
     try:
         conn = sqlite3.connect(caminho_db)
         query = """
-            SELECT data_saida, portador, destino, observacao 
-            FROM saidas 
-            WHERE plaqueta = ? 
-            ORDER BY data_saida DESC;
+            SELECT
+                Data AS data_saida,
+                Tecnico AS portador,
+                Tipo_Destino AS destino,
+                Observacao AS observacao,
+                Motivo AS motivo,
+                Status_Equipamento AS status_equipamento
+            FROM saida
+            WHERE CAST(Patrimonio AS INTEGER) = CAST(? AS INTEGER)
+            ORDER BY Data DESC, id DESC;
         """
-        df_historico = pd.read_sql_query(query, conn, params=(plaqueta,))
+        df_historico = pd.read_sql_query(query, conn, params=(str(plaqueta).strip(),))
         conn.close()
         return df_historico.to_dict(orient='records')
     except Exception:
@@ -165,36 +174,36 @@ def render_patrimonio():
         /* Estilo para abas do Streamlit ficarem mais modernas */
         .stTabs [data-baseweb="tab-list"] {
             gap: 10px;
-            background-color: #0B0F19;
+            background-color: #061016;
             padding: 8px;
             border-radius: 10px;
         }
         .stTabs [data-baseweb="tab"] {
             height: 45px;
             white-space: pre-wrap;
-            background-color: #111827;
+            background-color: #06151C;
             border-radius: 8px;
-            color: #94A3B8;
-            border: 1px solid #1F2937;
+            color: #AAB7BE;
+            border: 1px solid #18272E;
             transition: all 0.2s ease-in-out;
         }
         .stTabs [data-baseweb="tab"]:hover {
             color: #FFFFFF;
-            background-color: #1F2937;
-            border-color: #374151;
+            background-color: #18272E;
+            border-color: #22343C;
         }
         .stTabs [aria-selected="true"] {
-            background-color: #10B981 !important;
+            background-color: #F62B33 !important;
             color: #FFFFFF !important;
-            border-color: #10B981 !important;
+            border-color: #F62B33 !important;
             font-weight: bold;
         }
 
         /* Box de Destaque Verde para o registro selecionado */
         .patrimonio-main-card {
-            background: rgba(16, 185, 129, 0.04);
-            border: 1px solid rgba(16, 185, 129, 0.15);
-            border-left: 5px solid #10B981;
+            background: rgba(246,43,51, 0.04);
+            border: 1px solid rgba(246,43,51, 0.15);
+            border-left: 5px solid #F62B33;
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 25px;
@@ -208,20 +217,20 @@ def render_patrimonio():
             margin-bottom: 25px;
         }
         .metric-card {
-            background-color: #0E131F;
-            border: 1px solid #1E293B;
+            background-color: #061016;
+            border: 1px solid #06151C;
             border-radius: 10px;
             padding: 16px;
             text-align: left;
             transition: transform 0.2s, border-color 0.2s;
         }
         .metric-card:hover {
-            border-color: #334155;
+            border-color: #18272E;
             transform: translateY(-2px);
         }
         .metric-label {
             font-size: 0.75rem;
-            color: #94A3B8;
+            color: #AAB7BE;
             text-transform: uppercase;
             font-weight: 700;
             letter-spacing: 0.05em;
@@ -234,7 +243,7 @@ def render_patrimonio():
         }
         .metric-sub {
             font-size: 0.72rem;
-            color: #64748B;
+            color: #7C8A92;
             margin-top: 4px;
         }
 
@@ -242,15 +251,15 @@ def render_patrimonio():
         .timeline-container {
             position: relative;
             padding-left: 30px;
-            border-left: 2px dashed #1E293B;
+            border-left: 2px dashed #06151C;
             margin-left: 15px;
             margin-top: 15px;
         }
         .timeline-item {
             position: relative;
             margin-bottom: 25px;
-            background-color: #0E131F;
-            border: 1px solid #1E293B;
+            background-color: #061016;
+            border: 1px solid #06151C;
             padding: 15px;
             border-radius: 10px;
         }
@@ -267,9 +276,92 @@ def render_patrimonio():
             font-size: 12px;
             color: white;
         }
-        .badge-saida { background-color: #EF4444; }
-        .badge-cadastro { background-color: #10B981; }
-        .badge-vazio { background-color: #4B5563; }
+        .badge-saida { background-color: #F62B33; }
+        .badge-cadastro { background-color: #F62B33; }
+        .badge-vazio { background-color: #52616A; }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Camada visual final: menos caixas, menos bordas e cores adaptadas ao tema.
+    st.markdown("""
+        <style>
+        .patrimonio-main-card {
+            border: 0 !important;
+            border-left: 3px solid var(--primary-color) !important;
+            border-radius: 6px !important;
+            padding: 18px 20px !important;
+            background: var(--secondary-background-color) !important;
+        }
+        .metric-grid-container { gap: 8px !important; }
+        .metric-card {
+            border: 0 !important;
+            border-radius: 6px !important;
+            box-shadow: none !important;
+            padding: 12px 14px !important;
+            background: transparent !important;
+        }
+        .metric-card:hover { transform: none !important; border-color: transparent !important; }
+        .ficha-equipamento {
+            border-top: 1px solid var(--border-color);
+        }
+        .ficha-linha {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 11px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .ficha-linha span { color: var(--text-color); opacity: .62; font-size: .84rem; }
+        .ficha-linha strong { color: var(--text-color); font-size: .88rem; text-align: right; }
+        .timeline-container { border-left: 1px solid var(--border-color) !important; }
+        .timeline-item {
+            border: 0 !important;
+            border-bottom: 1px solid var(--border-color) !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            padding: 12px 0 16px 18px !important;
+            background: transparent !important;
+        }
+        .stTabs [data-baseweb="tab-list"] {
+            border: 0 !important;
+            border-bottom: 1px solid var(--border-color) !important;
+            border-radius: 0 !important;
+            padding: 0 !important;
+            gap: 4px !important;
+        }
+        .stTabs [data-baseweb="tab"] {
+            border: 0 !important;
+            border-radius: 4px 4px 0 0 !important;
+            height: 40px !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+        <style>
+        .patrimonio-main-card, .metric-card, .timeline-item {
+            background: var(--secondary-background-color) !important;
+            color: var(--text-color) !important;
+            border-color: var(--border-color) !important;
+        }
+        .metric-value, .timeline-item b { color: var(--text-color) !important; }
+        .metric-label, .metric-sub, .timeline-item span, .timeline-item div {
+            color: var(--text-color);
+        }
+        .timeline-container { border-left-color: var(--border-color) !important; }
+        .stTabs [data-baseweb="tab-list"] {
+            background: var(--secondary-background-color) !important;
+            border: 1px solid var(--border-color);
+        }
+        .stTabs [data-baseweb="tab"] {
+            background: transparent !important;
+            color: var(--text-color) !important;
+            border-color: var(--border-color) !important;
+        }
+        .stTabs [aria-selected="true"] {
+            background: var(--primary-color) !important;
+            color: white !important;
+        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -305,6 +397,23 @@ def render_patrimonio():
             plaqueta_atual = ativo.get('Plaqueta')
             
             historico_real = buscar_historico_saidas(plaqueta_atual)
+            historico_assistencias = buscar_historico_patrimonio(plaqueta_atual)
+            gasto_assistencias = (
+                float(historico_assistencias["valor_pago"].sum())
+                if not historico_assistencias.empty else 0.0
+            )
+            # Um envio para assistência já representa uma ocorrência de manutenção,
+            # mesmo antes de o registro financeiro/conserto ser lançado.
+            movimentos_assistencia = [
+                registro for registro in historico_real
+                if any(
+                    termo in str(registro.get("destino", "")).upper()
+                    or termo in str(registro.get("observacao", "")).upper()
+                    or termo in str(registro.get("motivo", "")).upper()
+                    for termo in ["ASSISTENCIA", "CONSERTO", "MANUTENCAO", "REPARO"]
+                )
+            ]
+            qtd_assistencias = max(len(historico_assistencias), len(movimentos_assistencia))
             esta_na_assistencia = False
             detalhe_assistencia = ""
             qtd_manutencoes = 0
@@ -326,9 +435,9 @@ def render_patrimonio():
             
             if esta_na_assistencia:
                 st.markdown(f"""
-                    <div style="background-color: rgba(239, 68, 68, 0.1); border: 1px solid #EF4444; border-radius: 10px; padding: 15px; margin-bottom: 20px;">
-                        <span style="color: #F87171; font-weight: bold; font-size: 1.1rem;">⚠️ ATIVO EM MANUTENÇÃO</span><br>
-                        <span style="color: #E2E8F0; font-size: 0.9rem;">{detalhe_assistencia}</span>
+                    <div style="background-color: rgba(239, 68, 68, 0.1); border: 1px solid #F62B33; border-radius: 10px; padding: 15px; margin-bottom: 20px;">
+                        <span style="color: #FF5A62; font-weight: bold; font-size: 1.1rem;">⚠️ ATIVO EM MANUTENÇÃO</span><br>
+                        <span style="color: #E7EAED; font-size: 0.9rem;">{detalhe_assistencia}</span>
                     </div>
                 """, unsafe_allow_html=True)
             
@@ -336,10 +445,10 @@ def render_patrimonio():
                 <div class="patrimonio-main-card">
                     <table style="width:100%; border:none; border-collapse:collapse; color:#FFFFFF;">
                         <tr style="border:none;">
-                            <td style="width:15%; border:none;"><span style="color:#10B981; font-size:0.8rem; font-weight:bold;">PLAQUETA</span><br><b style="font-size:1.3rem; color:#10B981;">{plaqueta_atual}</b></td>
-                            <td style="width:35%; border:none;"><span style="color:#94A3B8; font-size:0.8rem;">DESCRIÇÃO</span><br><b style="font-size:1rem;">{ativo.get('Desc. Bem')}</b></td>
-                            <td style="width:20%; border:none;"><span style="color:#94A3B8; font-size:0.8rem;">FILIAL</span><br><b>{ativo.get('Filial')}</b></td>
-                            <td style="width:15%; border:none;"><span style="color:#94A3B8; font-size:0.8rem;">CÓDIGO LOCAL</span><br><b>{ativo.get('Cód. Bem', 'N/A')}</b></td>
+                            <td style="width:15%; border:none;"><span style="color:#F62B33; font-size:0.8rem; font-weight:bold;">PLAQUETA</span><br><b style="font-size:1.3rem; color:#F62B33;">{plaqueta_atual}</b></td>
+                            <td style="width:35%; border:none;"><span style="color:#AAB7BE; font-size:0.8rem;">DESCRIÇÃO</span><br><b style="font-size:1rem;">{ativo.get('Desc. Bem')}</b></td>
+                            <td style="width:20%; border:none;"><span style="color:#AAB7BE; font-size:0.8rem;">FILIAL</span><br><b>{ativo.get('Filial')}</b></td>
+                            <td style="width:15%; border:none;"><span style="color:#AAB7BE; font-size:0.8rem;">CÓDIGO LOCAL</span><br><b>{ativo.get('Cód. Bem', 'N/A')}</b></td>
                         </tr>
                     </table>
                 </div>
@@ -371,7 +480,54 @@ def render_patrimonio():
             """, unsafe_allow_html=True)
 
             st.write("")
-            
+
+            st.markdown("### 🛠️ Histórico de Assistências")
+            if qtd_assistencias:
+                c_ass1, c_ass2, c_ass3 = st.columns(3)
+                c_ass1.metric("Ocorrências", qtd_assistencias)
+                c_ass2.metric("Gasto acumulado", f"R$ {gasto_assistencias:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                if not historico_assistencias.empty:
+                    ultima_assistencia = historico_assistencias.iloc[0]["data_entrada"]
+                    c_ass3.metric("Última entrada", pd.to_datetime(ultima_assistencia).strftime("%d/%m/%Y"))
+                elif movimentos_assistencia:
+                    c_ass3.metric("Último envio", str(movimentos_assistencia[0].get("data_saida", "N/A")))
+
+                if not historico_assistencias.empty:
+                    historico_exibir = historico_assistencias[
+                        ["data_entrada", "data_saida", "fornecedor", "defeito", "servico", "status", "valor_pago"]
+                    ].copy()
+                else:
+                    historico_exibir = pd.DataFrame([{
+                        "data_entrada": movimentos_assistencia[0].get("data_saida", ""),
+                        "data_saida": "",
+                        "fornecedor": movimentos_assistencia[0].get("portador", "Não informado"),
+                        "defeito": movimentos_assistencia[0].get("motivo", "Envio para assistência"),
+                        "servico": "Detalhamento pendente",
+                        "status": "Em assistência",
+                        "valor_pago": 0.0
+                    }])
+                historico_exibir = historico_exibir.rename(columns={
+                    "data_entrada": "Entrada",
+                    "data_saida": "Saída",
+                    "fornecedor": "Assistência",
+                    "defeito": "Defeito",
+                    "servico": "Serviço",
+                    "status": "Status",
+                    "valor_pago": "Valor pago"
+                })
+                st.dataframe(
+                    historico_exibir,
+                    hide_index=True,
+                    use_container_width=True,
+                    column_config={
+                        "Entrada": st.column_config.DateColumn("Entrada", format="DD/MM/YYYY"),
+                        "Saída": st.column_config.DateColumn("Saída", format="DD/MM/YYYY"),
+                        "Valor pago": st.column_config.NumberColumn("Valor pago", format="R$ %.2f")
+                    }
+                )
+            else:
+                st.info("Este patrimônio ainda não possui assistência técnica registrada.")
+
             col_esq, col_dir = st.columns([1.8, 1.2], gap="large")
             with col_esq:
                 st.markdown("### 🕒 Fluxo de Movimentação Real")
@@ -392,9 +548,9 @@ def render_patrimonio():
                             <div class="timeline-badge {badge_classe}">{emoji_mov}</div>
                             <div style="display:flex; justify-content:space-between; align-items:center;">
                                 <b style="font-size:1rem; color:#FFFFFF;">{titulo_mov}</b>
-                                <span style="font-size:0.8rem; color:#94A3B8;">📅 {registro.get('data_saida', 'N/A')}</span>
+                                <span style="font-size:0.8rem; color:#AAB7BE;">📅 {registro.get('data_saida', 'N/A')}</span>
                             </div>
-                            <div style="margin-top:8px; font-size:0.85rem; color:#CBD5E1;">
+                            <div style="margin-top:8px; font-size:0.85rem; color:#D5D9DC;">
                                 Destino: <b>{registro.get('destino', 'N/A')}</b><br>
                                 Obs: <i>{registro.get('observacao', 'Sem observações')}</i>
                             </div>
@@ -407,7 +563,7 @@ def render_patrimonio():
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <b style="font-size:1rem; color:#FFFFFF;">Sem Saídas Recentes</b>
                         </div>
-                        <div style="margin-top:8px; font-size:0.85rem; color:#CBD5E1;">
+                        <div style="margin-top:8px; font-size:0.85rem; color:#D5D9DC;">
                             Este equipamento não possui histórico de movimentação externa registrado recentemente.
                         </div>
                     </div>
@@ -421,9 +577,9 @@ def render_patrimonio():
 <div class="timeline-badge badge-cadastro">📥</div>
 <div style="display:flex; justify-content:space-between; align-items:center;">
 <b style="font-size:1rem; color:#FFFFFF;">Cadastro de Aquisição</b>
-<span style="font-size:0.8rem; color:#94A3B8;">📅 {ativo.get('Data aquisição')}</span>
+<span style="font-size:0.8rem; color:#AAB7BE;">📅 {ativo.get('Data aquisição')}</span>
 </div>
-<div style="margin-top:8px; font-size:0.85rem; color:#CBD5E1;">
+<div style="margin-top:8px; font-size:0.85rem; color:#D5D9DC;">
 Adquirido do fornecedor <b>{fornecedor_str}</b>.
 </div>
 </div>
@@ -432,30 +588,20 @@ Adquirido do fornecedor <b>{fornecedor_str}</b>.
                 st.markdown(timeline_html, unsafe_allow_html=True)
                 
             with col_dir:
-                st.markdown("### 📋 Ficha Detalhada")
-                cor_badge = "#EF4444" if qtd_manutencoes > 2 else ("#F59E0B" if qtd_manutencoes > 0 else "#10B981")
+                st.markdown("### 📋 Dados do equipamento")
                 
                 detalhes_html = f"""
-                    <table style="width:100%; border-collapse:collapse; color:#E2E8F0; font-size:0.9rem;">
-                        <tr style="border-bottom: 1px solid #1F2937; height:45px;">
-                            <td style="color:#94A3B8; font-weight:600;">Série de Fabricação</td>
-                            <td>{ativo.get('Série Fabricação', 'N/A')}</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #1F2937; height:45px;">
-                            <td style="color:#94A3B8; font-weight:600;">Código do Bem</td>
-                            <td>{ativo.get('Cód. Bem', 'N/A')}</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #1F2937; height:45px;">
-                            <td style="color:#94A3B8; font-weight:600;">Fornecedor Principal</td>
-                            <td>{ativo.get('Fornecedor', 'N/A')}</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #1F2937; height:45px;">
-                            <td style="color:#94A3B8; font-weight:600;">Histórico de Consertos</td>
-                            <td><span style="background-color: {cor_badge}; color: #FFFFFF; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;">{qtd_manutencoes} manutenções</span></td>
-                        </tr>
-                    </table>
+                    <div class="ficha-equipamento">
+                        <div class="ficha-linha"><span>Série de fabricação</span><strong>{ativo.get('Série Fabricação', 'N/A')}</strong></div>
+                        <div class="ficha-linha"><span>Código do bem</span><strong>{ativo.get('Cód. Bem', 'N/A')}</strong></div>
+                        <div class="ficha-linha"><span>Fornecedor principal</span><strong>{ativo.get('Fornecedor', 'N/A')}</strong></div>
+                        <div class="ficha-linha"><span>Ocorrências de manutenção</span><strong>{qtd_assistencias}</strong></div>
+                        <div class="ficha-linha"><span>Gasto acumulado</span><strong>{f"R$ {gasto_assistencias:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")}</strong></div>
+                    </div>
                 """
                 st.markdown(detalhes_html, unsafe_allow_html=True)
+                if movimentos_assistencia:
+                    st.caption("🔧 Enviado para assistência. O detalhamento do conserto ainda pode ser registrado no módulo de Assistências.")
 
         else:
             st.markdown("### Listagem de Registros")
@@ -537,7 +683,7 @@ Adquirido do fornecedor <b>{fornecedor_str}</b>.
                 st.markdown(f"""
                     <div class="metric-card">
                         <div class="metric-label">💰 Capital Giro</div>
-                        <div class="metric-value" style="color: #10B981;">R$ {valor_total:,.2f}</div>
+                        <div class="metric-value" style="color: #F62B33;">R$ {valor_total:,.2f}</div>
                         <div class="metric-sub">Custo total investido</div>
                     </div>
                 """, unsafe_allow_html=True)

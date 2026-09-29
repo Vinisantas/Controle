@@ -2,6 +2,7 @@ from repositories import patrimonio_repository, saida_repository
 from services import exportacao_service, saida_service
 import streamlit as st
 import pandas as pd
+import sqlite3
 
 
 def configurar_tela():
@@ -9,21 +10,21 @@ def configurar_tela():
     st.markdown("""
         <style>
         .block-container { padding-top: 2rem; padding-bottom: 2rem; }
-        h1 { font-weight: 800; letter-spacing: -0.05em; color: #0F172A; }
+        h1 { font-weight: 800; letter-spacing: -0.05em; color: #FFFFFF !important; }
         
         /* Centralização e largura controlada do formulário */
         .custom-form-container { 
-            background-color: #1E293B !important; 
+            background-color: #06151C !important;
             border-radius: 16px !important; 
-            border: 1px solid #334155 !important;
+            border: 1px solid #18272E !important;
             padding: 30px !important;
-            color: #F8FAFC !important;
+            color: #F1F3F5 !important;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
         }
         
         /* Estilização interna */
         .custom-form-container label p {
-            color: #94A3B8 !important;
+            color: #AAB7BE !important;
             font-weight: 600 !important;
             font-size: 0.85rem !important;
             text-transform: uppercase;
@@ -57,11 +58,13 @@ def render_saidas():
             st.error(erro)
 
         else:
-            saida_service.registrar_saida(dados)
-
-            st.success("Saída resgistrada com sucesso!")
-
-            st.rerun()
+            try:
+                saida_service.registrar_saida(dados)
+            except (ValueError, sqlite3.Error) as erro:
+                st.error(str(erro))
+            else:
+                st.success("Saída registrada com sucesso!")
+                st.rerun()
     render_historico_saidas(df_banco)
 
 
@@ -74,7 +77,7 @@ def render_formulario_saida():
     # FORMULÁRIO DE REGISTRO DE SAÍDA
     # =========================================================
 
-    margin_left, center_body, margin_right = st.columns([1, 2.4, 1])
+    margin_left, center_body, margin_right = st.columns([0.5, 4, 0.5])
 
     with center_body:
 
@@ -406,10 +409,11 @@ def render_historico_saidas(df_banco):
                 
             df_editado = st.data_editor(
                 df_filtrado,
-                key="editor_saidas",
+                key="editor_saidas_v2",
                 hide_index=True,
                 use_container_width=True,
-                num_rows="dynamic",
+                num_rows="fixed",
+                disabled=[col for col in df_filtrado.columns if col != "Baixa_Senior"],
                 height=450, 
                 column_config={
                     "id": None, 
