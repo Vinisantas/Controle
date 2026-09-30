@@ -693,21 +693,21 @@ Adquirido do fornecedor <b>{fornecedor_str}</b>.
                     st.caption("🔧 Enviado para assistência. O detalhamento do conserto ainda pode ser registrado no módulo de Assistências.")
 
         else:
-            st.markdown("### Listagem de Registros")
+            st.markdown("### 📋 Resultados da consulta")
             if not df_filtrado.empty:
                 df_filtrado_exibir = df_filtrado.copy()
-                df_filtrado_exibir['Selecionar'] = False
-                disabled_columns = [col for col in df_filtrado_exibir.columns if col != 'Selecionar']
-                st.data_editor(
+                if coluna_pesquisa == "Plaqueta" and filtro:
+                    ordem_plaquetas = {plaqueta: i for i, plaqueta in enumerate(lista_plaquetas)}
+                    df_filtrado_exibir["_ordem_consulta"] = df_filtrado_exibir["Plaqueta"].map(ordem_plaquetas)
+                    df_filtrado_exibir = df_filtrado_exibir.sort_values("_ordem_consulta", na_position="last").drop(columns="_ordem_consulta")
+                st.success(f"✅ {len(df_filtrado_exibir)} patrimônio(s) encontrado(s).")
+                st.dataframe(
                     df_filtrado_exibir,
-                    column_config={"Selecionar": st.column_config.CheckboxColumn("Selecionar", default=False)},
-                    disabled=disabled_columns,
                     use_container_width=True,
-                    hide_index=True,
-                    key="editor_patrimonio"
+                    hide_index=True
                 )
             else:
-                st.warning("⚠️ Nenhum registro encontrado.")
+                st.warning("⚠️ Nenhum registro encontrado para as plaquetas informadas.")
 
 # ==================================================
 # ABA 2: USO E CONSUMO (ESTOQUE)
