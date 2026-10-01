@@ -374,28 +374,62 @@ def render_patrimonio():
         df = carregar_dataframe()
         
         st.markdown("### 🔎 Filtro de Pesquisa (Patrimônio)")
-        coluna_pesquisa = st.selectbox("Coluna para Pesquisa", ["Plaqueta", "Desc. Bem", "Filial", "Portador"], key="sb_patrimonio")
+        # O formulário impede que Enter/edições parciais executem a consulta.
+        # Enter dentro da caixa apenas cria uma nova linha; a busca ocorre
+        # somente quando o usuário clica em Pesquisar patrimônios.
+        with st.form("form_busca_patrimonio", clear_on_submit=False):
+            coluna_pesquisa_input = st.selectbox(
+                "Coluna para Pesquisa",
+                ["Plaqueta", "Desc. Bem", "Filial", "Portador"],
+                key="sb_patrimonio"
+            )
+            filtro_input = st.text_area(
+                f"Consultar {coluna_pesquisa_input}",
+                placeholder="Digite uma plaqueta por linha. Enter pula para a próxima linha.",
+                height=120,
+                key="ta_patrimonio"
+            )
+            pesquisar_patrimonios = st.form_submit_button(
+                "🔎 Pesquisar patrimônios",
+                use_container_width=True,
+                type="primary"
+            )
 
-        filtro = st.text_area(
-            f"Consultar {coluna_pesquisa}",
-            placeholder="Cole ou digite as plaquetas separadas por linha...",
-            height=100,
-            key="ta_patrimonio"
-        ).strip().upper()
+        if pesquisar_patrimonios:
+            st.session_state["coluna_pesquisa_aplicada"] = coluna_pesquisa_input
+            st.session_state["filtro_patrimonio_aplicado"] = filtro_input.strip().upper()
+
+        coluna_pesquisa = st.session_state.get("coluna_pesquisa_aplicada", "Plaqueta")
+        filtro = st.session_state.get("filtro_patrimonio_aplicado", "")
 
         if filtro:
             if coluna_pesquisa == "Plaqueta":
-                # Leitores de código de barras podem enviar zeros à esquerda,
-                # além de espaços/quebras de linha. Normalize tudo antes da busca.
+                # Normalização robusta: aceita uma ou várias plaquetas,
+                # com quebras de linha, vírgulas, ponto e vírgula, espaços
+                # e zeros à esquerda.
+                import re
+
+                valores_brutos = re.split(r"[\s,;]+", filtro.strip())
                 lista_plaquetas = []
-                for valor in filtro.replace("\n", ",").split(","):
-                    valor = "".join(ch for ch in valor.strip() if ch.isdigit())
+
+                for valor in valores_brutos:
+                    valor = "".join(ch for ch in valor if ch.isdigit())
                     if valor:
                         lista_plaquetas.append(str(int(valor)).zfill(6))
 
-                df_filtrado = df[df["Plaqueta"].isin(lista_plaquetas)]
+                # Normaliza também a coluna antes da comparação para evitar
+                # diferenças entre "268", "268.0" e "000268".
+                plaquetas_normalizadas = pd.to_numeric(
+                    df["Plaqueta"], errors="coerce"
+                ).apply(
+                    lambda x: str(int(x)).zfill(6) if pd.notna(x) else ""
+                )
+
+                df_filtrado = df[
+                    plaquetas_normalizadas.isin(lista_plaquetas)
+                ].copy()
             else:
-                df_filtrado = df[df[coluna_pesquisa].str.contains(filtro, case=False, na=False)]
+                df_filtrado = df[df[coluna_pesquisa].astype(str).str.contains(filtro, case=False, na=False)]
         else:
             df_filtrado = df
 
@@ -537,6 +571,23 @@ def render_patrimonio():
             """, unsafe_allow_html=True)
 
             st.write("")
+
+            # =========================================================
+            # 📋 TODOS OS DADOS DO PATRIMÔNIO
+            # =========================================================
+            # Mesmo quando a consulta retorna apenas uma plaqueta,
+            # mantemos todos os campos originais do cadastro visíveis.
+            st.markdown("### 📋 Todos os dados do patrimônio")
+            dados_completos = df_filtrado.copy()
+
+            # Mantém a ordem original das colunas do cadastro e mostra
+            # exatamente o registro encontrado, sem limitar campos.
+            st.dataframe(
+                dados_completos,
+                use_container_width=True,
+                hide_index=True,
+                key="dados_completos_patrimonio"
+            )
 
             # =========================================================
             # ⚡ AÇÕES RÁPIDAS DO EQUIPAMENTO
