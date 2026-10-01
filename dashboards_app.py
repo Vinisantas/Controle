@@ -8,7 +8,7 @@ Esta aplicação é somente de visualização; não registra movimentações pat
 """
 import streamlit as st
 
-from dashboards.estoque import render_estoque
+from dashboards.estoque_premium import render_estoque
 from dashboards.suporte import render_sup
 
 st.set_page_config(

@@ -9,7 +9,7 @@ from modulos.RetornoEquipamentos import render_retornos
 from modulos.assistente_ti import render_assistente_ti
 from modulos.assistencias import render_assistencias
 from modulos.importacao_senior import render_importacao_senior
-from dashboards.estoque import render_estoque
+from dashboards.estoque_premium import render_estoque
 from dashboards.suporte import render_sup
 from dashboards.central import render_central_dashboards
 from modulos.painel_operacao import render_painel_operacao
