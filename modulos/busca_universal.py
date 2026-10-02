@@ -24,13 +24,80 @@ def _separar_termos(termo):
     ]
 
 
-def _buscar_cadastro(termo):
+def _encontrar_coluna(colunas, aliases):
+    mapa = {str(coluna).strip().casefold(): coluna for coluna in colunas}
+    for alias in aliases:
+        coluna = mapa.get(alias.strip().casefold())
+        if coluna:
+            return coluna
+    return None
+
+
+def _adicionar_idade(df):
+    """Calcula a idade do patrimônio a partir da data de aquisição."""
+    if df.empty:
+        return df
+
+    coluna_data = _encontrar_coluna(
+        df.columns,
+        ["Data Aquisição", "Data de Aquisição", "Data_Aquisicao", "Data Aquisicao", "Data Aquisição "],
+    )
+    if not coluna_data:
+        df["Idade"] = "Não informada"
+        return df
+
+    datas = pd.to_datetime(df[coluna_data], errors="coerce", dayfirst=True)
+    hoje = pd.Timestamp.now().normalize()
+
+    def formatar_idade(data):
+        if pd.isna(data) or data > hoje:
+            return "Não informada"
+        meses = max(0, (hoje.year - data.year) * 12 + hoje.month - data.month - (hoje.day < data.day))
+        anos, meses_restantes = divmod(meses, 12)
+        if anos and meses_restantes:
+            return f"{anos} anos e {meses_restantes} meses"
+        if anos:
+            return f"{anos} anos"
+        return f"{meses_restantes} meses"
+
+    df["Idade"] = datas.map(formatar_idade)
+    return df
+
+
+def _buscar_cadastro(termo, filtro="Tudo"):
     if not os.path.exists(DB_CADASTRO):
         return pd.DataFrame()
 
     termos = _separar_termos(termo)
     if not termos:
         return pd.DataFrame()
+
+    if filtro in {"Filial", "Fornecedor", "Portador"}:
+        try:
+            with sqlite3.connect(DB_CADASTRO) as conn:
+                colunas = pd.read_sql_query("PRAGMA table_info(cadastro_patrimonio)", conn)["name"].tolist()
+                aliases = {
+                    "Filial": ["Filial"],
+                    "Fornecedor": ["Fornecedor", "Fornec.", "Nome Fornecedor"],
+                    "Portador": ["Portador"],
+                }
+                coluna = _encontrar_coluna(colunas, aliases[filtro])
+                if not coluna:
+                    return pd.DataFrame()
+                identificador = '"' + str(coluna).replace('"', '""') + '"'
+                encontrados = []
+                for item in termos:
+                    df_item = pd.read_sql_query(
+                        f"SELECT * FROM cadastro_patrimonio WHERE CAST({identificador} AS TEXT) LIKE ? LIMIT 500",
+                        conn,
+                        params=(f"%{item}%",),
+                    )
+                    if not df_item.empty:
+                        encontrados.append(df_item)
+                if encontrados:
+                    return pd.concat(encontrados, ignore_index=True).drop_duplicates()
+        except Exception:
+            return pd.DataFrame()
 
     numeros = [_normalizar(item) for item in termos]
     todos_sao_plaquetas = all(item.strip().isdigit() for item in termos)
@@ -119,13 +186,18 @@ def _buscar_assistencias(termo):
 
 def render_busca_universal():
     st.markdown("### 🔎 Busca universal")
-    st.caption("Pesquise um ou vários patrimônios. Use uma linha para cada plaqueta; Enter apenas cria uma nova linha.")
+    st.caption("Pesquise por patrimônio, filial, fornecedor ou portador.")
 
     with st.form("form_busca_universal", clear_on_submit=False):
+        filtro = st.selectbox(
+            "Filtrar por",
+            ["Tudo", "Patrimônio", "Filial", "Fornecedor", "Portador"],
+            key="busca_universal_filtro",
+        )
         termo_digitado = st.text_area(
             "Patrimônios ou termos de busca",
-            placeholder="Ex.:\n081840\n102021\n103031",
-            height=110,
+            placeholder="Ex.:\n081840\n102021\n103031" if filtro == "Patrimônio" else "Digite o valor que deseja localizar...",
+            height=110 if filtro == "Patrimônio" else 70,
             key="busca_universal_termo_multilinha",
             label_visibility="collapsed",
         )
@@ -137,26 +209,33 @@ def render_busca_universal():
 
     if pesquisar:
         st.session_state["busca_universal_aplicada"] = termo_digitado.strip()
+        st.session_state["busca_universal_filtro_aplicado"] = filtro
     termo = st.session_state.get("busca_universal_aplicada", "").strip()
+    filtro_aplicado = st.session_state.get("busca_universal_filtro_aplicado", "Tudo")
 
     if not termo:
         st.caption("Digite uma ou mais plaquetas e clique em Pesquisar. Zeros à esquerda são aceitos.")
         return
 
-    cadastro = _buscar_cadastro(termo)
+    cadastro = _buscar_cadastro(termo, filtro_aplicado)
     termos = _separar_termos(termo)
-    movimentos_lista = [_buscar_movimentos(item) for item in termos]
-    movimentos_lista = [df for df in movimentos_lista if not df.empty]
-    movimentos = pd.concat(movimentos_lista, ignore_index=True).drop_duplicates() if movimentos_lista else pd.DataFrame()
-    assistencias_lista = [_buscar_assistencias(item) for item in termos]
-    assistencias_lista = [df for df in assistencias_lista if not df.empty]
-    assistencias = pd.concat(assistencias_lista, ignore_index=True).drop_duplicates() if assistencias_lista else pd.DataFrame()
+    if filtro_aplicado == "Patrimônio":
+        movimentos_lista = [_buscar_movimentos(item) for item in termos]
+        movimentos_lista = [df for df in movimentos_lista if not df.empty]
+        movimentos = pd.concat(movimentos_lista, ignore_index=True).drop_duplicates() if movimentos_lista else pd.DataFrame()
+        assistencias_lista = [_buscar_assistencias(item) for item in termos]
+        assistencias_lista = [df for df in assistencias_lista if not df.empty]
+        assistencias = pd.concat(assistencias_lista, ignore_index=True).drop_duplicates() if assistencias_lista else pd.DataFrame()
+    else:
+        movimentos = pd.DataFrame()
+        assistencias = pd.DataFrame()
 
     if cadastro.empty and movimentos.empty and assistencias.empty:
-        st.warning("Nenhum registro encontrado para essa busca.")
+        st.warning(f"Nenhum registro encontrado para o filtro {filtro_aplicado}.")
         return
 
     if not cadastro.empty:
+        cadastro = _adicionar_idade(cadastro)
         st.success(f"{len(cadastro)} patrimônio(s) encontrado(s).")
         st.markdown("#### 📋 Dados completos do patrimônio")
         st.dataframe(
