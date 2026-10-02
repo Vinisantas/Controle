@@ -1,4 +1,6 @@
 import os
+import re
+import unicodedata
 import sqlite3
 import pandas as pd
 import streamlit as st
@@ -24,10 +26,15 @@ def _separar_termos(termo):
     ]
 
 
+def _normalizar_nome_coluna(nome):
+    nome = unicodedata.normalize("NFKD", str(nome)).encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^a-z0-9]", "", nome.casefold())
+
+
 def _encontrar_coluna(colunas, aliases):
-    mapa = {str(coluna).strip().casefold(): coluna for coluna in colunas}
+    mapa = {_normalizar_nome_coluna(coluna): coluna for coluna in colunas}
     for alias in aliases:
-        coluna = mapa.get(alias.strip().casefold())
+        coluna = mapa.get(_normalizar_nome_coluna(alias))
         if coluna:
             return coluna
     return None
@@ -42,6 +49,14 @@ def _adicionar_idade(df):
         df.columns,
         ["Data Aquisição", "Data de Aquisição", "Data_Aquisicao", "Data Aquisicao", "Data Aquisição "],
     )
+    if not coluna_data:
+        # Aceita variações do cabeçalho, como Data Aquisição (Senior) ou Data_Aquis.
+        coluna_data = next(
+            (coluna for coluna in df.columns
+             if "data" in _normalizar_nome_coluna(coluna)
+             and "aquis" in _normalizar_nome_coluna(coluna)),
+            None,
+        )
     if not coluna_data:
         df["Idade"] = "Não informada"
         return df
@@ -194,13 +209,21 @@ def render_busca_universal():
             ["Tudo", "Patrimônio", "Filial", "Fornecedor", "Portador"],
             key="busca_universal_filtro",
         )
-        termo_digitado = st.text_area(
-            "Patrimônios ou termos de busca",
-            placeholder="Ex.:\n081840\n102021\n103031" if filtro == "Patrimônio" else "Digite o valor que deseja localizar...",
-            height=110 if filtro == "Patrimônio" else 70,
-            key="busca_universal_termo_multilinha",
-            label_visibility="collapsed",
-        )
+        if filtro == "Patrimônio":
+            termo_digitado = st.text_area(
+                "Patrimônios",
+                placeholder="Uma plaqueta por linha. Ex.:\n081840\n102021\n103031",
+                height=110,
+                key="busca_universal_termo_multilinha",
+                label_visibility="collapsed",
+            )
+        else:
+            termo_digitado = st.text_input(
+                "Valor para pesquisa",
+                placeholder="Digite o valor que deseja localizar...",
+                key="busca_universal_termo_unico",
+                label_visibility="collapsed",
+            )
         pesquisar = st.form_submit_button(
             "🔎 Pesquisar",
             type="primary",
